@@ -25,7 +25,7 @@ Toutes les commandes se lancent dans le dev container (`.devcontainer/`).
 - Lis `docs/adr/` avant d'ajouter une dépendance ou de changer de composant.
 - Ne contredis pas un ADR au statut « acceptée ».
 - S'il faut en changer, propose un nouvel ADR à partir de
-  `docs/templates/adr.md`, au statut « proposée », puis arrête-toi.
+  `docs/templates/0000-modele.md`, au statut « proposée », puis arrête-toi.
 
 ## À ne pas faire
 
