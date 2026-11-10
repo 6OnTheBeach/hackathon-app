@@ -97,7 +97,7 @@ Détails dans le cours : [Le dev container › Prérequis](https://learn.glasswo
 
 1. **Cloner** (sous Windows : dans le terminal **Ubuntu**)
    ```bash
-   git clone git@github.com:Hetic-Hackathon-Givaudan-2026-Sanchez/hackathon-app.git
+   git clone git@github.com:6OnTheBeach/hackathon-app.git
    cd hackathon-app
    code .
    ```
