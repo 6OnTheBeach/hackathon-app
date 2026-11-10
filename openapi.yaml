@@ -1,0 +1,118 @@
+openapi: 3.1.0
+info:
+  title: API Givaudan B2B
+  version: 0.1.0
+  description: Fiches produits enrichies, comparateur et assistant IA explicatif.
+
+servers:
+  - url: http://localhost:3000
+    description: API dans le dev container
+
+paths:
+  /products:
+    get:
+      summary: Rechercher des produits
+      parameters:
+        - name: q
+          in: query
+          description: Texte recherché dans le nom et la description
+          schema: { type: string }
+      responses:
+        '200':
+          description: Les produits trouvés
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ProductSummary' }
+
+  /products/{id}:
+    get:
+      summary: Fiche produit enrichie
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: La fiche du produit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Product' }
+        '404':
+          description: Produit inconnu
+
+  /products/compare:
+    get:
+      summary: Comparer plusieurs produits
+      parameters:
+        - name: ids
+          in: query
+          required: true
+          description: Identifiants séparés par des virgules, de 2 à 4
+          schema: { type: string }
+      responses:
+        '200':
+          description: Les produits, côte à côte
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Product' }
+        '400':
+          description: Moins de 2 ou plus de 4 identifiants
+
+  /assistant/questions:
+    post:
+      summary: Poser une question à l'assistant IA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+                productId:
+                  type: string
+                  description: Facultatif, pour une question sur un produit précis
+      responses:
+        '200':
+          description: La réponse de l'assistant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [answer]
+                properties:
+                  answer: { type: string }
+                  productIds:
+                    type: array
+                    items: { type: string }
+                    description: Les produits cités dans la réponse
+
+components:
+  schemas:
+    ProductSummary:
+      type: object
+      required: [id, name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        category: { type: string }
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          properties:
+            description: { type: string }
+            applications:
+              type: array
+              items: { type: string }
+              description: Les usages du produit
+            caracteristiques:
+              type: object
+              additionalProperties: true
+              description: Caractéristiques techniques, variables selon le type de produit
