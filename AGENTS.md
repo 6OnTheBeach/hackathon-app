@@ -19,6 +19,7 @@ Toutes les commandes se lancent dans le dev container (`.devcontainer/`).
   base : les modifier ne change pas une base existante.
 - Une branche `feature/…` par ticket, créée depuis le ticket, à partir de
   `develop`. La pull request vise `develop`.
+- Le contrat de l'API est `openapi.yaml` : décris une route dans ce fichier avant de la coder, n'invente pas de route qui n'y figure pas.
 
 ## Décisions
 
