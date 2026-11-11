@@ -1,8 +1,11 @@
 {
   "name": "HackathonSix",
-  // VS Code démarre toute la stack, puis s'attache au service « dev »
+  // VS Code démarre les services de runServices, puis s'attache à « dev »
   "dockerComposeFile": ["../compose.yaml"],
   "service": "dev",
+  // Seulement le poste de travail et la base : api et web (docker compose up)
+  // ne tournent pas en double avec npm run dev
+  "runServices": ["dev", "db"],
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "remoteUser": "node",
@@ -31,6 +34,7 @@
   // L'API et le front, accessibles depuis votre navigateur
   "forwardPorts": [3000, 5173],
 
-  // Une fois, à la création du conteneur
-  "postCreateCommand": "git config --global --add safe.directory /workspace && npm ci"
+  // Une fois, à la création du conteneur : api/.env (s'il n'existe pas), puis
+  // les dépendances
+  "postCreateCommand": "git config --global --add safe.directory /workspace && (test -f api/.env || cp api/.env.example api/.env) && npm ci"
 }

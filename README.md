@@ -98,24 +98,49 @@ Détails dans le cours : [Le dev container › Prérequis](https://learn.glasswo
    Aucun conteneur à lancer à la main : VS Code s'en charge à l'étape suivante.
 2. **Ouvrir dans le conteneur** : `F1` → **Dev Containers: Reopen in Container**.
    La première fois, compter quelques minutes : l'image se construit, la base démarre et les dépendances s'installent (`npm ci`).
+   Le conteneur crée aussi `api/.env` à partir de `api/.env.example` (identifiants de la base de dev).
 3. **Vérifier**, dans le terminal de VS Code :
    ```bash
    pg_isready -h db -U app -d app   # doit répondre « accepting connections »
    ```
+4. **Lancer l'API et le front** :
+   ```bash
+   npm run dev
+   ```
+   Ouvrir http://localhost:5173 : la page doit afficher **API OK** et la version de PostgreSQL. L'API seule répond sur http://localhost:3000/api/health.
 
 Ce que fait le conteneur : [Le dev container › Comment ça marche](https://learn.glassworks.tech/fullstack-setup/environnement/devcontainer#comment-ça-marche).
+
+### Sans dev container : `docker compose up`
+
+Pour une démo, ou pour Product et Data/IA : toute la stack (base, API, front) démarre avec une seule commande, depuis un clone neuf, sans VS Code. Sous Windows : dans le terminal **Ubuntu**, dans le dossier du projet.
+
+```bash
+docker compose up --build       # --build : reconstruit les images après un git pull
+```
+
+- Front : http://localhost:8080 (doit afficher **API OK**)
+- API : http://localhost:3001/api/health
+
+Les ports diffèrent de ceux de `npm run dev` (5173 et 3000) : les deux peuvent tourner en même temps sans conflit. Le front y est servi par `vite preview`, suffisant pour une démo mais pas un serveur de production. `Ctrl+C` arrête tout ; `docker compose down` supprime les conteneurs (les données de la base restent dans `db/data`).
 
 ---
 
 ## Au quotidien
 
-| Commande (terminal du conteneur) | Rôle                                     |
-| -------------------------------- | ---------------------------------------- |
-| `npm run lint`                   | ESLint sur tout le projet                |
-| `npm run format`                 | Prettier corrige la forme                |
-| `npm run format:check`           | vérifie la forme (comme la CI `qualite`) |
-| `pg_isready -h db -U app -d app` | vérifie que la base répond               |
-| `psql -h db -U app -d app`       | session SQL sur la base                  |
+| Commande (terminal du conteneur) | Rôle                                                                |
+| -------------------------------- | ------------------------------------------------------------------- |
+| `npm run dev`                    | API (port 3000) et front (port 5173), rechargés à chaque sauvegarde |
+| `npm run build`                  | compile l'API et le front (comme la CI `qualite`)                   |
+| `npm run lint`                   | ESLint sur tout le projet                                           |
+| `npm run format`                 | Prettier corrige la forme                                           |
+| `npm run format:check`           | vérifie la forme (comme la CI `qualite`)                            |
+| `npm run db:generate -w api`     | génère une migration depuis `api/src/db/schema.ts`                  |
+| `curl localhost:3000/api/health` | vérifie que l'API et la base répondent                              |
+| `pg_isready -h db -U app -d app` | vérifie que la base répond                                          |
+| `psql -h db -U app -d app`       | session SQL sur la base                                             |
+
+**Changer le schéma de la base** : modifier `api/src/db/schema.ts`, lancer `npm run db:generate -w api`, relire et commiter le SQL généré dans `api/src/db/migrations/`. L'API applique les migrations à son démarrage. Si `develop` a reçu une migration entre-temps, régénérer la sienne après l'avoir récupéré ([ADR 0005](docs/adr/0005-acces-aux-donnees.md)).
 
 **On ne pousse jamais sur `develop` ni `main`** (c'est bloqué). Chaque tâche part d'un **ticket** (Issues → New issue, avec un modèle) :
 
@@ -144,7 +169,7 @@ Le pourquoi : [GitFlow et branches protégées](https://learn.glassworks.tech/fu
 - **API** : le contrat est [`openapi.yaml`](openapi.yaml). Une route y est décrite **avant** d'être codée.
 - **Décisions** : lire [`docs/adr/`](docs/adr/) avant d'ajouter une dépendance ou de changer de composant. Pour revenir sur une décision, proposer un nouvel ADR à partir de [`docs/templates/0000-modele.md`](docs/templates/0000-modele.md), au statut « proposée ».
 - **Secrets** : clés et mots de passe vont dans `.env` (ignoré par git), jamais dans le code.
-- **Avant une pull request** : `npm run lint` et `npm run format:check` doivent passer.
+- **Avant une pull request** : `npm run lint`, `npm run format:check` et `npm run build` doivent passer.
 
 Les mêmes règles, pour les agents IA : [`AGENTS.md`](AGENTS.md).
 

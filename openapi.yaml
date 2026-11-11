@@ -5,10 +5,37 @@ info:
   description: Fiches produits enrichies, comparateur et assistant IA explicatif.
 
 servers:
-  - url: http://localhost:3000
-    description: API dans le dev container
+  - url: http://localhost:3000/api
+    description: API dans le dev container (npm run dev)
+  - url: http://localhost:3001/api
+    description: API de la stack docker compose
 
 paths:
+  /health:
+    get:
+      summary: État de l'API et de la base de données
+      description: Interroge PostgreSQL (SELECT version()).
+      responses:
+        '200':
+          description: L'API et la base répondent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, db]
+                properties:
+                  status: { type: string, const: ok }
+                  db:
+                    type: string
+                    description: La version de PostgreSQL, telle que renvoyée par SELECT version()
+                    examples:
+                      - 'PostgreSQL 17.6 on x86_64-pc-linux-gnu, compiled by gcc …'
+        '503':
+          description: La base de données ne répond pas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /products:
     get:
       summary: Rechercher des produits
@@ -95,6 +122,14 @@ paths:
 
 components:
   schemas:
+    Error:
+      type: object
+      required: [status, error]
+      properties:
+        status: { type: string, const: error }
+        error:
+          type: string
+          description: Message lisible, sans détail technique interne
     ProductSummary:
       type: object
       required: [id, name]

@@ -1,0 +1,24 @@
+{
+  // Node 24 exécute src/*.ts directement (npm run dev) ; tsc vérifie les types
+  // et compile vers dist/ pour l'image de production (npm run build).
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "rootDir": "src",
+    "outDir": "dist",
+    "strict": true,
+    // Seule syntaxe que Node sait retirer : ni enum, ni namespace, ni
+    // propriétés de paramètres de constructeur
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    // Imports en .ts dans le code, réécrits en .js dans dist/
+    "rewriteRelativeImportExtensions": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["src"]
+}
