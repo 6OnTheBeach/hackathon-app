@@ -4,9 +4,11 @@ Projet de l'équipe pour le **Givaudan AI Innovation Challenge 2026**.
 
 Tout tourne dans un **dev container** : chacun a le même Node, la même base de données et les mêmes outils, quel que soit son ordinateur. Pourquoi ce choix : [Pourquoi tout conteneuriser](https://learn.glassworks.tech/fullstack-setup/environnement/principes).
 
-## Stack (à définir par l'équipe)
+## Stack
 
----
+- API et front en TypeScript sur Node 24 : [ADR 0001](docs/adr/0001-TypeScript.md)
+- PostgreSQL 17 avec pgvector : [ADR 0002](docs/adr/0002-base-de-donnees.md)
+- Contrat de l'API dans [`openapi.yaml`](openapi.yaml) : [ADR 0003](docs/adr/0003-contrat-api.md)
 
 ## Qui a besoin de quoi ?
 
@@ -73,23 +75,15 @@ Détails dans le cours : [Le dev container › Prérequis](https://learn.glasswo
 
    Plan B sans SSH : `gh auth login` dans le terminal du conteneur, et cloner avec l'adresse HTTPS du dépôt.
 
-6. **Ollama** (l'IA en local) : [installer la version Windows](https://ollama.com/download) (choisir « use Ollama locally », pas besoin de compte), puis dans PowerShell :
-   ```powershell
-   ollama pull llama3.2:1b
-   ```
-   Détails : [L'IA › Ollama sur votre machine](https://learn.glassworks.tech/fullstack-setup/environnement/ia#ollama-sur-votre-machine).
-
 ### macOS
 
 1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) et [VS Code](https://code.visualstudio.com) + l'extension **Dev Containers**.
 2. git et clé SSH comme sous Windows (étape 4), dans le Terminal. L'agent SSH tourne déjà, il suffit d'y charger la clé : `ssh-add --apple-use-keychain ~/.ssh/id_ed25519`.
-3. [Ollama](https://ollama.com/download), puis `ollama pull llama3.2:1b`.
 
 ### Linux
 
 1. Docker Engine, [VS Code](https://code.visualstudio.com) + l'extension **Dev Containers**.
 2. git et clé SSH comme sous Windows (étape 4). Si `ssh-add -l` répond « Could not open a connection to your authentication agent », ajouter aussi le bloc de l'étape 5.
-3. Ollama : `curl -fsSL https://ollama.com/install.sh | sh`, puis `ollama pull llama3.2:1b`. Il doit écouter sur toutes les interfaces pour être joignable depuis le conteneur : voir l'encadré « Sous Linux » de [L'IA](https://learn.glassworks.tech/fullstack-setup/environnement/ia#3-rendre-votre-machine-joignable).
 
 ---
 
@@ -102,12 +96,12 @@ Détails dans le cours : [Le dev container › Prérequis](https://learn.glasswo
    code .
    ```
    Aucun conteneur à lancer à la main : VS Code s'en charge à l'étape suivante.
-2. **Ouvrir dans le conteneur** : `F1` → **Dev Containers: Reopen in Container**. La première fois, compter quelques minutes : l'image se construit, la base démarre avec ses données de test, les dépendances et `api/.env` s'installent seuls.
-3. **Lancer**, dans le terminal de VS Code :
+2. **Ouvrir dans le conteneur** : `F1` → **Dev Containers: Reopen in Container**.
+   La première fois, compter quelques minutes : l'image se construit, la base démarre et les dépendances s'installent (`npm ci`).
+3. **Vérifier**, dans le terminal de VS Code :
    ```bash
-   npm run dev
+   pg_isready -h db -U app -d app   # doit répondre « accepting connections »
    ```
-   puis ouvrir http://localhost:5173 : « API OK · PostgreSQL 17… » et la liste des questions.
 
 Ce que fait le conteneur : [Le dev container › Comment ça marche](https://learn.glassworks.tech/fullstack-setup/environnement/devcontainer#comment-ça-marche).
 
@@ -115,40 +109,57 @@ Ce que fait le conteneur : [Le dev container › Comment ça marche](https://lea
 
 ## Au quotidien
 
-| Commande (terminal du conteneur)      | Rôle                                            |
-| ------------------------------------- | ----------------------------------------------- |
-| `npm run dev`                         | lance l'API (port 3000) et le front (port 5173) |
-| `npm run lint`                        | ESLint sur tout le projet                       |
-| `npm run format`                      | Prettier corrige la forme                       |
-| `npm run build`                       | vérifie que tout compile (comme la CI)          |
-| `psql postgres://app:app@db:5432/app` | session SQL sur la base                         |
+| Commande (terminal du conteneur) | Rôle                                     |
+| -------------------------------- | ---------------------------------------- |
+| `npm run lint`                   | ESLint sur tout le projet                |
+| `npm run format`                 | Prettier corrige la forme                |
+| `npm run format:check`           | vérifie la forme (comme la CI `qualite`) |
+| `pg_isready -h db -U app -d app` | vérifie que la base répond               |
+| `psql -h db -U app -d app`       | session SQL sur la base                  |
 
-**On ne pousse jamais sur `develop` ni `main`** (c'est bloqué). Pour chaque tâche :
+**On ne pousse jamais sur `develop` ni `main`** (c'est bloqué). Chaque tâche part d'un **ticket** (Issues → New issue, avec un modèle) :
 
-```bash
-git checkout develop && git pull
-git checkout -b feature/ma-tache
-# … coder, git add, git commit …
-git push -u origin feature/ma-tache
-```
+1. Dans le ticket : **Development → Create a branch**, à partir de `develop`.
+   Nommer la branche `feature/<numéro>-<sujet>`.
+2. Dans le terminal du conteneur :
+   ```bash
+   git fetch origin
+   git switch feature/12-mon-sujet
+   # … coder, git add, git commit …
+   git push
+   ```
+3. Sur GitHub : **Compare & pull request** vers `develop`, check `qualite` vert,
+   **Squash and merge**. Le ticket, lié à la branche, passe en Done tout seul.
 
-Puis une pull request vers `develop`, check `qualite` vert, relecture, **Squash and merge**. Le pourquoi : [GitFlow et branches protégées](https://learn.glassworks.tech/fullstack-setup/collaboration/gitflow).
+Le pourquoi : [GitFlow et branches protégées](https://learn.glassworks.tech/fullstack-setup/collaboration/gitflow).
 
 ⚠️ Toujours **commiter depuis le terminal du dev container** : le hook pre-commit a besoin de son Node ([Qualité avant le commit](https://learn.glassworks.tech/fullstack-setup/collaboration/qualite)).
 
-**Remettre la base à zéro** : `F1` → **Dev Containers: Reopen Folder Locally**, puis dans Ubuntu `sudo rm -rf db/data`, puis `F1` → **Dev Containers: Reopen in Container** ([La base de données](https://learn.glassworks.tech/fullstack-setup/environnement/base-de-donnees#le-schéma-et-les-données-de-test)).
+**Remettre la base à zéro** : les scripts SQL de `db/init/` ne sont joués qu'au premier démarrage de la base. Après en avoir modifié ou récupéré un, il faut donc repartir d'une base vide : `F1` → **Dev Containers: Reopen Folder Locally**, puis dans Ubuntu `sudo rm -rf db/data`, puis `F1` → **Dev Containers: Reopen in Container** ([La base de données](https://learn.glassworks.tech/fullstack-setup/environnement/base-de-donnees#le-schéma-et-les-données-de-test)).
+
+---
+
+## Règles du projet
+
+- **API** : le contrat est [`openapi.yaml`](openapi.yaml). Une route y est décrite **avant** d'être codée.
+- **Décisions** : lire [`docs/adr/`](docs/adr/) avant d'ajouter une dépendance ou de changer de composant. Pour revenir sur une décision, proposer un nouvel ADR à partir de [`docs/templates/0000-modele.md`](docs/templates/0000-modele.md), au statut « proposée ».
+- **Secrets** : clés et mots de passe vont dans `.env` (ignoré par git), jamais dans le code.
+- **Avant une pull request** : `npm run lint` et `npm run format:check` doivent passer.
+
+Les mêmes règles, pour les agents IA : [`AGENTS.md`](AGENTS.md).
 
 ---
 
 ## Dépannage
 
-| Problème                                              | Solution                                                                                                                                                                                |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Permission denied (publickey)` au `git push`         | Fermer VS Code ; dans Ubuntu, `ssh-add -l` doit afficher la clé (sinon : Prérequis, étape 5) ; rouvrir avec `code .` depuis Ubuntu, puis `F1` → **Dev Containers: Reopen in Container** |
-| `Network is unreachable`, l'installation échoue       | Éviter le partage de connexion d'un téléphone (souvent IPv6 uniquement : WSL et Docker n'y ont pas Internet) ; passer sur un Wi-Fi ou une box                                           |
-| **Reopen in Container** propose une liste de modèles  | Mauvais dossier ouvert : `Échap`, puis ouvrir le dossier `hackathon-app` qui contient `.devcontainer/`                                                                                  |
-| VS Code demande d'autoriser `wsl.localhost`           | Projet ouvert depuis Windows : **Cancel**, puis `code .` depuis Ubuntu                                                                                                                  |
-| La question à l'IA échoue                             | Ollama doit tourner (icône du lama) et le modèle être téléchargé (`ollama list`)                                                                                                        |
-| `GH013 … Changes must be made through a pull request` | Normal : passer par une branche `feature/…` et une pull request                                                                                                                         |
+| Problème                                                          | Solution                                                                                                                                                                                |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Permission denied (publickey)` au `git push`                     | Fermer VS Code ; dans Ubuntu, `ssh-add -l` doit afficher la clé (sinon : Prérequis, étape 5) ; rouvrir avec `code .` depuis Ubuntu, puis `F1` → **Dev Containers: Reopen in Container** |
+| `Network is unreachable`, l'installation échoue                   | Éviter le partage de connexion d'un téléphone (souvent IPv6 uniquement : WSL et Docker n'y ont pas Internet) ; passer sur un Wi-Fi ou une box                                           |
+| **Reopen in Container** propose une liste de modèles              | Mauvais dossier ouvert : `Échap`, puis ouvrir le dossier `hackathon-app` qui contient `.devcontainer/`                                                                                  |
+| VS Code demande d'autoriser `wsl.localhost`                       | Projet ouvert depuis Windows : **Cancel**, puis `code .` depuis Ubuntu                                                                                                                  |
+| `GH013 … Changes must be made through a pull request`             | Normal : passer par une branche `feature/…` et une pull request                                                                                                                         |
+| `Cannot connect to the Docker daemon` ou `protocol not available` | Docker Desktop n'a pas fini de démarrer : attendre « Engine running ». Sinon, quitter Docker Desktop, `wsl --shutdown` dans PowerShell, relancer Docker Desktop                         |
+| `Updating VS Code Server…` à l'ouverture                          | Normal après une mise à jour de VS Code : attendre la fin du téléchargement                                                                                                             |
 
 Le conteneur ne démarre pas ? `F1` → **Dev Containers: Show Container Log**, puis le tableau d'erreurs du cours : [Le dev container › Lancer](https://learn.glassworks.tech/fullstack-setup/environnement/devcontainer#lancer).
