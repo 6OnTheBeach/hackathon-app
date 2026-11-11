@@ -12,8 +12,7 @@ références et les guider de la recherche à la validation de la commande.
 Le produit attendu comprend des fiches produits enrichies, un assistant IA
 explicatif et un comparateur.
 Le hackathon dure deux semaines : un prototype en semaine 1, un produit plus
-fonctionnel en semaine 2. Le développement repose sur un seul développeur ;
-les profils Data/IA et Product ne codent pas.
+fonctionnel en semaine 2.
 Le dev container est en place sur Node 24 (Debian trixie), la même base que
 l'image de production prévue. Le contrat de l'API doit être décrit dans un
 fichier OpenAPI.

@@ -1,0 +1,3 @@
+-- Migration initiale, volontairement vide : le migrateur de Drizzle a besoin
+-- d'au moins une migration. Les tables arriveront avec les suivantes
+-- (npm run db:generate -w api). L'extension pgvector est activée par db/init/.
