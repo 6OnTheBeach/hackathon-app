@@ -10,6 +10,7 @@ services:
     command: sleep infinity
     volumes:
       - .:/workspace:cached
+      - claude-config:/home/node/.claude
     depends_on:
       db:
         condition: service_healthy
@@ -75,3 +76,7 @@ services:
     depends_on:
       api:
         condition: service_healthy
+# Volumes nommés, gérés par Docker
+volumes:
+  # Connexion et réglages de Claude Code, conservés entre deux rebuilds
+  claude-config:
