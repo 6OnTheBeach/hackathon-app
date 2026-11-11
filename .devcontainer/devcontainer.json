@@ -36,5 +36,5 @@
 
   // Une fois, à la création du conteneur : api/.env (s'il n'existe pas), puis
   // les dépendances
-  "postCreateCommand": "git config --global --add safe.directory /workspace && (test -f api/.env || cp api/.env.example api/.env) && npm ci"
+  "postCreateCommand": "git config --global --add safe.directory /workspace && (test -f api/.env || cp api/.env.example api/.env) && npm ci && sudo chown node:node /home/node/.claude"
 }
