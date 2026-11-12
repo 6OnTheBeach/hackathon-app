@@ -150,6 +150,8 @@ uvicorn api:app --host 0.0.0.0 --port 8000
 - **Avec `npm run dev`** (dev container) : dans `api/.env`, `AI_PROVIDER=data`, puis relancer `npm run dev`. Un `api/.env` créé avant cette version n'a pas ces lignes : les recopier depuis `api/.env.example`.
 - **Avec docker compose** : `AI_PROVIDER=data docker compose up --build`.
 
+**Service Data/IA derrière un tunnel ngrok** : `DATA_AI_URL` prend l'adresse du tunnel, et `DATA_AI_KEY` la clé d'API exigée par le service (envoyée dans l'en-tête `X-API-Key`). Avec `npm run dev`, dans `api/.env` ; avec docker compose : `AI_PROVIDER=data DATA_AI_URL=https://….ngrok-free.app DATA_AI_KEY=… docker compose up --build`. Sans clé, ou avec une clé refusée, le service répond 401 et l'API renvoie un 502 qui le dit.
+
 Si l'IA est injoignable, trop lente, ou renvoie une réponse invalide, l'API répond 502 avec un message clair (affiché par le front), et le souvenir reste enregistré, sans analyse.
 
 ---
