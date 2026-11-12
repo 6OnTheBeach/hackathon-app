@@ -1,31 +1,83 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import {
   ApiRequestError,
   createJourney,
   sendMessage,
   type Analysis,
-  type ProfilNote,
 } from './api.ts';
+import { Header } from './components/Header.tsx';
+import { Explorer, IMAGES } from './pages/Explorer.tsx';
+import { pistesPour } from './mocks/pistes.ts';
+import { nombreEchantillons, Pistes, type Commande } from './pages/Pistes.tsx';
+import { Projet, type ProjetReponses } from './pages/Projet.tsx';
+import { Raconter } from './pages/Raconter.tsx';
+import { Ressentir } from './pages/Ressentir.tsx';
 
-type State =
+// Le parcours Scent Journey : un écran par étape, l'état est gardé ici pour
+// qu'on puisse revenir en arrière sans rien perdre
+
+export type AnalyseState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'done'; analysis: Analysis }
+  // model : le modèle qui a répondu (« mock » : réponse simulée)
+  | { kind: 'done'; analysis: Analysis; model: string }
   | { kind: 'error'; message: string };
 
+// Les écrans 05 · Envoyer ma demande et 06 · Merci ne sont pas encore faits :
+// Projet mène directement aux pistes
+type Ecran = 'raconter' | 'explorer' | 'ressentir' | 'projet' | 'pistes';
+
 export function App() {
+  const [ecran, setEcran] = useState<Ecran>('raconter');
   const [text, setText] = useState('');
   // Le parcours est créé au premier envoi, puis réutilisé
   const [journeyId, setJourneyId] = useState<string | null>(null);
-  const [state, setState] = useState<State>({ kind: 'idle' });
+  const [state, setState] = useState<AnalyseState>({ kind: 'idle' });
+  // Le souvenir de la dernière analyse réussie : s'il a changé depuis,
+  // l'analyse n'est plus à jour
+  const [texteAnalyse, setTexteAnalyse] = useState<string | null>(null);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [projet, setProjet] = useState<ProjetReponses>({
+    produits: [],
+    marches: [],
+  });
+  // Les formats choisis dans la maquette, par défaut ; les pistes sont
+  // choisies à l'arrivée sur l'écran (voir allerAuxPistes)
+  const [commande, setCommande] = useState<Commande>({
+    pistes: {},
+    formats: ['Mouillettes parfumées', 'Dans vos produits'],
+  });
+  // Le nombre d'échantillons mis au panier (null : rien d'ajouté)
+  const [auPanier, setAuPanier] = useState<number | null>(null);
 
-  const loading = state.kind === 'loading';
+  const perime = state.kind === 'done' && text.trim() !== texteAnalyse;
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  function aller(suivant: Ecran) {
+    setEcran(suivant);
+    window.scrollTo(0, 0);
+  }
+
+  // Les pistes dépendent du souvenir analysé : si la commande en contient
+  // d'un autre souvenir, on repart de toutes les pistes de celui-ci
+  function allerAuxPistes() {
+    if (state.kind !== 'done') return;
+    const ids = pistesPour(state.analysis.signature.nom).map((p) => p.id);
+    const actuelles = Object.keys(commande.pistes);
+    if (actuelles.length === 0 || actuelles.some((id) => !ids.includes(id))) {
+      setCommande({
+        ...commande,
+        pistes: Object.fromEntries(ids.map((id) => [id, 1])),
+      });
+      setAuPanier(null);
+    }
+    aller('pistes');
+  }
+
+  // L'IA met 20 s et plus : l'utilisateur reste sur l'écran Raconter, qui
+  // affiche l'attente, et ne passe à la suite qu'une fois l'analyse terminée
+  async function analyser() {
     const souvenir = text.trim();
-    if (souvenir === '' || loading) return;
-
+    if (souvenir === '' || state.kind === 'loading') return;
     setState({ kind: 'loading' });
     try {
       let id = journeyId;
@@ -34,7 +86,12 @@ export function App() {
         setJourneyId(id);
       }
       const message = await sendMessage(id, souvenir);
-      setState({ kind: 'done', analysis: message.analysis });
+      setTexteAnalyse(souvenir);
+      setState({
+        kind: 'done',
+        analysis: message.analysis,
+        model: message.model,
+      });
     } catch (err) {
       // Parcours disparu (base remise à zéro) : on en créera un nouveau
       if (err instanceof ApiRequestError && err.status === 404) {
@@ -45,134 +102,58 @@ export function App() {
     }
   }
 
-  return (
-    <main className="page">
-      <header>
-        <p className="eyebrow">Givaudan · Scent Journey</p>
-        <h1>Racontez un souvenir</h1>
-        <p className="muted">
-          Un lieu, un moment, une émotion : l'IA en tire une signature
-          olfactive.
-        </p>
-      </header>
+  const premiereImage = IMAGES.find((i) => i.id === selection[0])?.src;
 
-      <form className="card" onSubmit={onSubmit}>
-        <label htmlFor="souvenir" className="sr-only">
-          Votre souvenir
-        </label>
-        <textarea
-          id="souvenir"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Par exemple : une forêt tropicale juste après l'averse, la terre humide…"
-          rows={5}
-          maxLength={5000}
-          disabled={loading}
+  return (
+    <div className="app">
+      <Header panier={auPanier ?? 0} />
+      {ecran === 'raconter' && (
+        <Raconter
+          text={text}
+          onTextChange={setText}
+          state={state}
+          perime={perime}
+          onAnalyser={() => void analyser()}
+          onSuivant={() => aller('explorer')}
         />
-        <div className="actions">
-          <button type="submit" disabled={loading || text.trim() === ''}>
-            Envoyer
-          </button>
-        </div>
-      </form>
-
-      {loading && (
-        <p className="status" role="status">
-          <span className="spinner" aria-hidden="true" />
-          L'IA analyse votre souvenir…
-        </p>
       )}
-      {state.kind === 'error' && (
-        <p className="card error" role="alert">
-          {state.message}
-        </p>
+      {ecran === 'explorer' && (
+        <Explorer
+          selection={selection}
+          onSelectionChange={setSelection}
+          onRetour={() => aller('raconter')}
+          onSuivant={() => aller('ressentir')}
+        />
       )}
-      {state.kind === 'done' && <Result analysis={state.analysis} />}
-    </main>
-  );
-}
-
-function Result({ analysis }: { analysis: Analysis }) {
-  const { comprehension: c, signature, roue, profil } = analysis;
-  return (
-    <>
-      <section className="card">
-        <h2>Signature</h2>
-        <p className="signature">{signature.nom}</p>
-        <p>{signature.description}</p>
-      </section>
-
-      <section className="card">
-        <h2>Compréhension</h2>
-        <dl className="facts">
-          <dt>Lieu</dt>
-          <dd>{c.lieu || '—'}</dd>
-          <dt>Moment</dt>
-          <dd>{c.moment || '—'}</dd>
-          <dt>Météo</dt>
-          <dd>{c.meteo || '—'}</dd>
-          <dt>Émotion</dt>
-          <dd>{c.emotion || '—'}</dd>
-        </dl>
-        {c.elements.length > 0 && (
-          <ul className="tags">
-            {c.elements.map((el) => (
-              <li key={el}>{el}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>Roue olfactive</h2>
-        <ul className="bars">
-          {roue.map(({ famille, pourcentage }) => (
-            <li key={famille}>
-              <span className="bar-label">{famille}</span>
-              <span className="bar-track">
-                <span
-                  className="bar-fill"
-                  style={{
-                    width: `${Math.min(100, Math.max(0, pourcentage))}%`,
-                  }}
-                />
-              </span>
-              <span className="bar-value">{pourcentage} %</span>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {profil && (
-        <section className="card">
-          <h2>Profil</h2>
-          <div className="profil">
-            <Notes title="Tête" notes={profil.tete} />
-            <Notes title="Cœur" notes={profil.coeur} />
-            <Notes title="Fond" notes={profil.fond} />
-          </div>
-        </section>
+      {/* Ressentir et Projet : on n'y arrive qu'avec une analyse terminée
+          (Suivant de Raconter) */}
+      {ecran === 'ressentir' && state.kind === 'done' && (
+        <Ressentir
+          analysis={state.analysis}
+          image={premiereImage}
+          onRetour={() => aller('explorer')}
+          onSuivant={() => aller('projet')}
+        />
       )}
-    </>
-  );
-}
-
-function Notes({ title, notes }: { title: string; notes: ProfilNote[] }) {
-  return (
-    <div>
-      <h3>{title}</h3>
-      {notes.length === 0 ? (
-        <p className="muted">—</p>
-      ) : (
-        <ul className="notes">
-          {notes.map((n, i) => (
-            <li key={`${n.ingredient}-${i}`}>
-              <strong>{n.ingredient}</strong>
-              {n.reference && <span className="ref"> · {n.reference}</span>}
-              {n.raison && <p className="muted">{n.raison}</p>}
-            </li>
-          ))}
-        </ul>
+      {ecran === 'projet' && state.kind === 'done' && (
+        <Projet
+          analysis={state.analysis}
+          reponses={projet}
+          onReponsesChange={setProjet}
+          image={premiereImage}
+          onRetour={() => aller('ressentir')}
+          onSuivant={allerAuxPistes}
+        />
+      )}
+      {ecran === 'pistes' && state.kind === 'done' && (
+        <Pistes
+          signature={state.analysis.signature.nom}
+          commande={commande}
+          onCommandeChange={setCommande}
+          auPanier={auPanier}
+          onAjouter={() => setAuPanier(nombreEchantillons(commande))}
+          onRetour={() => aller('projet')}
+        />
       )}
     </div>
   );

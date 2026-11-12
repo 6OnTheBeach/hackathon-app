@@ -16,7 +16,7 @@ export async function analyze(text: string): Promise<AnalyzeResult> {
           config.ai.timeoutMs,
           config.ai.dataKey,
         )
-      : await analyzeMock();
+      : await analyzeMock(text);
 
   // api.py renvoie le texte brut du modèle quand ce n'est pas du JSON
   if (typeof raw.answer === 'string') {
