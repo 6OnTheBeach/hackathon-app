@@ -10,7 +10,12 @@ import { parseAnalysis } from './ai.validate.ts';
 export async function analyze(text: string): Promise<AnalyzeResult> {
   const raw =
     config.ai.provider === 'data' && config.ai.dataUrl
-      ? await askDataAi(config.ai.dataUrl, text, config.ai.timeoutMs)
+      ? await askDataAi(
+          config.ai.dataUrl,
+          text,
+          config.ai.timeoutMs,
+          config.ai.dataKey,
+        )
       : await analyzeMock();
 
   // api.py renvoie le texte brut du modèle quand ce n'est pas du JSON

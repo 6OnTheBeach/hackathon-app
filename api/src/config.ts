@@ -58,6 +58,9 @@ export const config = {
     provider,
     // Lue et vérifiée seulement si le fournisseur est data
     dataUrl: provider === 'data' ? url('DATA_AI_URL') : undefined,
+    // Facultative : envoyée dans l'en-tête X-API-Key si définie
+    dataKey:
+      provider === 'data' ? process.env.DATA_AI_KEY || undefined : undefined,
     // Le modèle de Data/IA met 20 s et plus : au-delà, on abandonne
     timeoutMs: 120_000,
   },

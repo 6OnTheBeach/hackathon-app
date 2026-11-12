@@ -50,6 +50,9 @@ services:
       # le service Data/IA, lancé sur l'hôte (uvicorn … --host 0.0.0.0)
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       DATA_AI_URL: ${DATA_AI_URL:-http://host.docker.internal:8000}
+      # Facultative : la clé du service Data/IA (en-tête X-API-Key), lue dans
+      # l'environnement du shell, jamais écrite ici
+      DATA_AI_KEY: ${DATA_AI_KEY:-}
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     ports:
