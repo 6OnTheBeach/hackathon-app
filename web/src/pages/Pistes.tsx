@@ -1,50 +1,15 @@
-import boisFlotte from '../assets/explorer-bois-flotte.png';
 import fleursBlanches from '../assets/explorer-fleurs-blanches.png';
-import frangipanier from '../assets/explorer-frangipanier.png';
-import pluie from '../assets/brief-pluie.png';
 import mouillettes from '../assets/format-mouillettes.png';
 import interieur from '../assets/produit-interieur.png';
+import { COULEURS_FAMILLES, pistesPour } from '../mocks/pistes.ts';
 
 // Écran « 07 · Vos pistes et panier » de la maquette Figma : les pistes
 // imaginées par les parfumeurs, la forme des échantillons, et le panier
 
-// Données de démonstration, reprises de la maquette : aucune route de l'API
-// ne fournit encore les pistes des parfumeurs
-const PISTES = [
-  {
-    id: 'A',
-    nom: 'Pluie de jade',
-    citation:
-      'Une ouverture très aérienne, au plus près de l’air juste après l’averse.',
-    composition: { vert: 55, floral: 25, bois: 20 },
-    matieres: 'Accord pluie, thé vert, jasmin',
-    photo: pluie,
-  },
-  {
-    id: 'B',
-    nom: 'Pétales mouillés',
-    citation:
-      'Les fleurs blanches au premier plan, portées par une fraîcheur humide.',
-    composition: { vert: 35, floral: 45, bois: 20 },
-    matieres: 'Frangipanier, feuille verte, muscs blancs',
-    photo: frangipanier,
-  },
-  {
-    id: 'C',
-    nom: 'Teck tiède',
-    citation:
-      'Un sillage plus enveloppant : le souvenir de la terrasse en bois.',
-    composition: { vert: 30, floral: 25, bois: 45 },
-    matieres: 'Bois flotté, mousse, accord pluie',
-    photo: boisFlotte,
-  },
-];
+// Les pistes viennent de mocks/pistes.ts : des données de démonstration,
+// choisies selon la signature (aucune route de l'API ne les fournit)
 
-const FAMILLES = [
-  { cle: 'vert', nom: 'Vert', couleur: '#3b6c8f' },
-  { cle: 'floral', nom: 'floral', couleur: '#78608d' },
-  { cle: 'bois', nom: 'bois', couleur: '#9a6633' },
-] as const;
+const NOMBRES = ['aucune', 'une', 'deux', 'trois', 'quatre', 'cinq'];
 
 const FORMATS = [
   {
@@ -96,7 +61,9 @@ export function Pistes({
   onAjouter,
   onRetour,
 }: Props) {
-  const choisies = PISTES.filter((p) => p.id in commande.pistes);
+  const pistes = pistesPour(signature);
+  const choisies = pistes.filter((p) => p.id in commande.pistes);
+  const nombre = NOMBRES[pistes.length] ?? String(pistes.length);
   const echantillons = nombreEchantillons(commande);
   const formats = FORMATS.map((f) => f.nom).filter((f) =>
     commande.formats.includes(f),
@@ -132,18 +99,27 @@ export function Pistes({
           <div className="pistes-titre">
             <span className="pistes-nouveau">
               <span aria-hidden="true" />
-              Nouveau : {PISTES.length} pistes disponibles
+              Nouveau&nbsp;: {pistes.length} piste{pistes.length > 1 ? 's' : ''}{' '}
+              disponible{pistes.length > 1 ? 's' : ''}
             </span>
-            <h1>Nos parfumeurs ont imaginé trois pistes</h1>
+            <h1>
+              {pistes.length === 0
+                ? 'Nos parfumeurs préparent vos pistes'
+                : `Nos parfumeurs ont imaginé ${nombre} piste${pistes.length > 1 ? 's' : ''}`}
+            </h1>
             <p>
-              Toutes partent de votre souvenir « {signature} ». Choisissez
-              celles que vous voulez sentir : elles s’ajoutent à votre panier, à
-              droite.
+              {pistes.length === 0
+                ? `Les pistes de démonstration n'existent que pour les souvenirs d'exemple. Votre souvenir « ${signature} » recevra les siennes de nos parfumeurs.`
+                : `${pistes.length > 1 ? 'Toutes partent' : 'Elle part'} de votre souvenir « ${signature} ». Choisissez celles que vous voulez sentir\u00A0: elles s’ajoutent à votre panier, à droite.`}
+            </p>
+            <p className="pistes-demo">
+              Pistes de démonstration&nbsp;: simulées, pas encore proposées par
+              nos parfumeurs.
             </p>
           </div>
 
           <ul className="pistes" aria-label="Pistes">
-            {PISTES.map((piste) => {
+            {pistes.map((piste) => {
               const choisie = piste.id in commande.pistes;
               const quantite = commande.pistes[piste.id] ?? 1;
               return (
@@ -155,12 +131,12 @@ export function Pistes({
                     className="piste-photo"
                     style={{ backgroundImage: `url(${piste.photo})` }}
                   >
-                    <span className="piste-lettre">Piste {piste.id}</span>
+                    <span className="piste-lettre">Piste {piste.lettre}</span>
                     <button
                       type="button"
                       className="piste-choix"
                       aria-pressed={choisie}
-                      aria-label={`Choisir la piste ${piste.id}, ${piste.nom}`}
+                      aria-label={`Choisir la piste ${piste.lettre}, ${piste.nom}`}
                       onClick={() => basculerPiste(piste.id)}
                     >
                       {choisie ? '✓' : '+'}
@@ -171,29 +147,32 @@ export function Pistes({
                     <p className="piste-citation">« {piste.citation} »</p>
                     <div className="piste-composition">
                       <span className="piste-barre" aria-hidden="true">
-                        {FAMILLES.map((f) => (
+                        {piste.composition.map((f) => (
                           <span
-                            key={f.cle}
+                            key={f.famille}
                             style={{
-                              width: `${piste.composition[f.cle]}%`,
-                              background: f.couleur,
+                              width: `${f.pourcentage}%`,
+                              background:
+                                COULEURS_FAMILLES[f.famille] ?? '#5d6b66',
                             }}
                           />
                         ))}
                       </span>
                       <span>
-                        {FAMILLES.map(
-                          (f) => `${f.nom} ${piste.composition[f.cle]} %`,
-                        ).join(', ')}
+                        {piste.composition
+                          .map((f) => `${f.famille} ${f.pourcentage} %`)
+                          .join(', ')}
                       </span>
                     </div>
-                    <p className="piste-matieres">{piste.matieres}</p>
+                    <p className="piste-matieres">
+                      {piste.matieres.join(', ')}
+                    </p>
                     <div className="piste-quantite">
                       <span>Quantité</span>
                       <span className="compteur">
                         <button
                           type="button"
-                          aria-label={`Une de moins, piste ${piste.id}`}
+                          aria-label={`Une de moins, piste ${piste.lettre}`}
                           disabled={!choisie || quantite <= 1}
                           onClick={() =>
                             changerQuantite(piste.id, quantite - 1)
@@ -204,7 +183,7 @@ export function Pistes({
                         <output aria-live="polite">{quantite}</output>
                         <button
                           type="button"
-                          aria-label={`Une de plus, piste ${piste.id}`}
+                          aria-label={`Une de plus, piste ${piste.lettre}`}
                           disabled={!choisie || quantite >= QUANTITE_MAX}
                           onClick={() =>
                             changerQuantite(piste.id, quantite + 1)
@@ -221,7 +200,7 @@ export function Pistes({
           </ul>
 
           <fieldset className="formats">
-            <legend>Sous quelle forme voulez-vous les sentir ?</legend>
+            <legend>Sous quelle forme voulez-vous les sentir&nbsp;?</legend>
             <div className="formats-liste">
               {FORMATS.map((f) => {
                 const coche = commande.formats.includes(f.nom);
@@ -267,7 +246,7 @@ export function Pistes({
                   <img src={p.photo} alt="" />
                   <span className="panier-ligne-texte">
                     <strong>
-                      Piste {p.id}, {p.nom}
+                      Piste {p.lettre}, {p.nom}
                     </strong>
                     <span>{formatsTexte || 'aucun format choisi'}</span>
                   </span>

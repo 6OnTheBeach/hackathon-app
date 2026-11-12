@@ -1,5 +1,4 @@
 import type { Analysis } from '../api.ts';
-import pluie from '../assets/brief-pluie.png';
 import bougie from '../assets/produit-bougie.png';
 import hygiene from '../assets/produit-hygiene.png';
 import interieur from '../assets/produit-interieur.png';
@@ -36,7 +35,8 @@ type Props = {
   analysis: Analysis;
   reponses: ProjetReponses;
   onReponsesChange: (reponses: ProjetReponses) => void;
-  // La photo du brief : la même que celle de l'écran Ressentir
+  // La photo du brief : la même que celle de l'écran Ressentir (la première
+  // image choisie à l'étape Explorer) ; sans image, un dégradé neutre
   image?: string;
   onRetour: () => void;
   onSuivant: () => void;
@@ -77,7 +77,7 @@ export function Projet({
           <fieldset className="question-carte">
             <legend>
               <span className="question-numero">1</span>
-              Dans quels produits l’imaginez-vous ?
+              Dans quels produits l’imaginez-vous&nbsp;?
             </legend>
             <div className="produits">
               {PRODUITS.map((p) => {
@@ -115,7 +115,7 @@ export function Projet({
           <fieldset className="question-carte">
             <legend>
               <span className="question-numero">2</span>
-              Où sera-t-elle commercialisée ?
+              Où sera-t-elle commercialisée&nbsp;?
             </legend>
             <div className="marches">
               {MARCHES.map((m) => (
@@ -138,7 +138,7 @@ export function Projet({
           </fieldset>
         </div>
 
-        <Brief analysis={analysis} reponses={reponses} image={image ?? pluie} />
+        <Brief analysis={analysis} reponses={reponses} image={image} />
       </div>
 
       <div className="barre">
@@ -161,7 +161,7 @@ function Brief({
 }: {
   analysis: Analysis;
   reponses: ProjetReponses;
-  image: string;
+  image?: string;
 }) {
   const { produits, marches } = reponses;
   // La signature compte pour moitié, chaque question pour un quart
@@ -174,7 +174,10 @@ function Brief({
 
   return (
     <aside className="brief" aria-live="polite">
-      <div className="brief-photo" style={{ backgroundImage: `url(${image})` }}>
+      <div
+        className="brief-photo"
+        style={image ? { backgroundImage: `url(${image})` } : undefined}
+      >
         <span>Votre brief</span>
         <strong>{analysis.signature.nom}</strong>
       </div>

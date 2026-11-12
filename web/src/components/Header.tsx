@@ -17,7 +17,11 @@ export function Header({ panier: nombre = 0 }: { panier?: number }) {
         <span className="panier-icone">
           <img
             src={panier}
-            alt={nombre > 0 ? `Panier : ${nombre} échantillons` : 'Panier vide'}
+            alt={
+              nombre > 0
+                ? `Panier\u00A0: ${nombre} échantillons`
+                : 'Panier vide'
+            }
             width={24}
             height={31}
           />

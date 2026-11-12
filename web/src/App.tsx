@@ -7,6 +7,7 @@ import {
 } from './api.ts';
 import { Header } from './components/Header.tsx';
 import { Explorer, IMAGES } from './pages/Explorer.tsx';
+import { pistesPour } from './mocks/pistes.ts';
 import { nombreEchantillons, Pistes, type Commande } from './pages/Pistes.tsx';
 import { Projet, type ProjetReponses } from './pages/Projet.tsx';
 import { Raconter } from './pages/Raconter.tsx';
@@ -18,7 +19,8 @@ import { Ressentir } from './pages/Ressentir.tsx';
 export type AnalyseState =
   | { kind: 'idle' }
   | { kind: 'loading' }
-  | { kind: 'done'; analysis: Analysis }
+  // model : le modèle qui a répondu (« mock » : réponse simulée)
+  | { kind: 'done'; analysis: Analysis; model: string }
   | { kind: 'error'; message: string };
 
 // Les écrans 05 · Envoyer ma demande et 06 · Merci ne sont pas encore faits :
@@ -39,9 +41,10 @@ export function App() {
     produits: [],
     marches: [],
   });
-  // Toutes les pistes et les formats choisis dans la maquette, par défaut
+  // Les formats choisis dans la maquette, par défaut ; les pistes sont
+  // choisies à l'arrivée sur l'écran (voir allerAuxPistes)
   const [commande, setCommande] = useState<Commande>({
-    pistes: { A: 1, B: 1, C: 1 },
+    pistes: {},
     formats: ['Mouillettes parfumées', 'Dans vos produits'],
   });
   // Le nombre d'échantillons mis au panier (null : rien d'ajouté)
@@ -52,6 +55,22 @@ export function App() {
   function aller(suivant: Ecran) {
     setEcran(suivant);
     window.scrollTo(0, 0);
+  }
+
+  // Les pistes dépendent du souvenir analysé : si la commande en contient
+  // d'un autre souvenir, on repart de toutes les pistes de celui-ci
+  function allerAuxPistes() {
+    if (state.kind !== 'done') return;
+    const ids = pistesPour(state.analysis.signature.nom).map((p) => p.id);
+    const actuelles = Object.keys(commande.pistes);
+    if (actuelles.length === 0 || actuelles.some((id) => !ids.includes(id))) {
+      setCommande({
+        ...commande,
+        pistes: Object.fromEntries(ids.map((id) => [id, 1])),
+      });
+      setAuPanier(null);
+    }
+    aller('pistes');
   }
 
   // L'IA met 20 s et plus : l'utilisateur reste sur l'écran Raconter, qui
@@ -68,7 +87,11 @@ export function App() {
       }
       const message = await sendMessage(id, souvenir);
       setTexteAnalyse(souvenir);
-      setState({ kind: 'done', analysis: message.analysis });
+      setState({
+        kind: 'done',
+        analysis: message.analysis,
+        model: message.model,
+      });
     } catch (err) {
       // Parcours disparu (base remise à zéro) : on en créera un nouveau
       if (err instanceof ApiRequestError && err.status === 404) {
@@ -119,7 +142,7 @@ export function App() {
           onReponsesChange={setProjet}
           image={premiereImage}
           onRetour={() => aller('ressentir')}
-          onSuivant={() => aller('pistes')}
+          onSuivant={allerAuxPistes}
         />
       )}
       {ecran === 'pistes' && state.kind === 'done' && (

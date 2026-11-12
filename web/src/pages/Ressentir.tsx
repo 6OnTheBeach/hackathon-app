@@ -1,6 +1,5 @@
-import type { Analysis } from '../api.ts';
+import type { Analysis, ProfilNote } from '../api.ts';
 import pointPret from '../assets/point-pret.svg';
-import foret from '../assets/ressentir-foret.png';
 import { Etapes } from '../components/Etapes.tsx';
 
 // Écran « 03 · Ressentir — signature olfactive » de la maquette Figma,
@@ -22,7 +21,8 @@ const COULEURS = [
 
 type Props = {
   analysis: Analysis;
-  // La première image choisie à l'étape Explorer : elle « donne la direction »
+  // La première image choisie à l'étape Explorer : elle « donne la direction ».
+  // Sans image, un dégradé neutre (aucune photo sans rapport avec le souvenir)
   image?: string;
   onRetour: () => void;
   onSuivant: () => void;
@@ -30,35 +30,38 @@ type Props = {
 
 export function Ressentir({ analysis, image, onRetour, onSuivant }: Props) {
   const { signature } = analysis;
-  const photo = image ?? foret;
 
   return (
     <div className="ressentir">
-      <section
-        className="signature-bandeau"
-        style={{ backgroundImage: `url(${photo})` }}
-      >
-        <Etapes courante={2} claire />
-        <div className="signature-texte">
-          <span className="signature-badge">
-            <img src={pointPret} alt="" width={8} height={8} />
-            Votre signature olfactive est prête
-          </span>
-          <h1>{signature.nom}</h1>
-          <p>{signature.description}</p>
-        </div>
-      </section>
-
-      <section className="roue-section" aria-labelledby="roue-titre">
-        <Roue roue={analysis.roue} photo={photo} />
-        <div className="familles">
-          <div className="familles-titre">
-            <h2 id="roue-titre">Votre roue olfactive</h2>
-            <p>Les familles olfactives qui traduisent votre souvenir.</p>
+      {/* La zone qui défile : la barre reste visible en dessous */}
+      <div className="defilement">
+        <section
+          className="signature-bandeau"
+          style={image ? { backgroundImage: `url(${image})` } : undefined}
+        >
+          <Etapes courante={2} claire />
+          <div className="signature-texte">
+            <span className="signature-badge">
+              <img src={pointPret} alt="" width={8} height={8} />
+              Votre signature olfactive est prête
+            </span>
+            <h1>{signature.nom}</h1>
+            <p>{signature.description}</p>
           </div>
-          <Familles roue={analysis.roue} />
-        </div>
-      </section>
+        </section>
+
+        <section className="roue-section" aria-labelledby="roue-titre">
+          <Roue roue={analysis.roue} photo={image} />
+          <div className="familles">
+            <div className="familles-titre">
+              <h2 id="roue-titre">Votre roue olfactive</h2>
+              <p>Les familles olfactives qui traduisent votre souvenir.</p>
+            </div>
+            <Familles roue={analysis.roue} />
+          </div>
+          {analysis.profil && <Pyramide profil={analysis.profil} />}
+        </section>
+      </div>
 
       <div className="barre barre-flottante">
         <button type="button" className="bouton discret" onClick={onRetour}>
@@ -111,7 +114,7 @@ function arc(debut: number, fin: number): string {
   ].join(' ');
 }
 
-function Roue({ roue, photo }: { roue: Analysis['roue']; photo: string }) {
+function Roue({ roue, photo }: { roue: Analysis['roue']; photo?: string }) {
   const familles = parts(roue);
   let angle = 0;
   const segments = familles.map((f) => {
@@ -167,7 +170,11 @@ function Roue({ roue, photo }: { roue: Analysis['roue']; photo: string }) {
             );
           })}
       </svg>
-      <img className="roue-photo" src={photo} alt="" />
+      {photo ? (
+        <img className="roue-photo" src={photo} alt="" />
+      ) : (
+        <span className="roue-photo neutre" aria-hidden="true" />
+      )}
     </div>
   );
 }
@@ -197,5 +204,43 @@ function Familles({ roue }: { roue: Analysis['roue'] }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+const NIVEAUX = [
+  { cle: 'tete', nom: 'Tête' },
+  { cle: 'coeur', nom: 'Cœur' },
+  { cle: 'fond', nom: 'Fond' },
+] as const;
+
+// La pyramide olfactive de l'analyse (profil.tete, profil.coeur, profil.fond) :
+// pour chaque note, l'ingrédient, sa référence catalogue et la raison de l'IA
+function Pyramide({ profil }: { profil: NonNullable<Analysis['profil']> }) {
+  return (
+    <section className="pyramide" aria-labelledby="pyramide-titre">
+      <h2 id="pyramide-titre">Votre pyramide olfactive</h2>
+      <dl className="pyramide-niveaux">
+        {NIVEAUX.map(({ cle, nom }) => {
+          const notes: ProfilNote[] = profil[cle];
+          if (notes.length === 0) return null;
+          return (
+            <div key={cle} className="pyramide-niveau">
+              <dt>{nom}</dt>
+              {notes.map((n) => (
+                <dd key={`${n.reference}-${n.ingredient}`}>
+                  <span className="pyramide-ingredient">
+                    <strong>{n.ingredient}</strong>
+                    <span className="pyramide-reference">
+                      Réf. {n.reference}
+                    </span>
+                  </span>
+                  <span className="pyramide-raison">{n.raison}</span>
+                </dd>
+              ))}
+            </div>
+          );
+        })}
+      </dl>
+    </section>
   );
 }

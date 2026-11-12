@@ -1,13 +1,14 @@
 import type { FormEvent } from 'react';
 import type { AnalyseState } from '../App.tsx';
+import type { Analysis } from '../api.ts';
 import iconeAssistant from '../assets/icone-assistant.svg';
 import iconeDicter from '../assets/icone-dicter.svg';
 import iconeEcrire from '../assets/icone-ecrire.svg';
 import iconePhoto from '../assets/icone-photo.svg';
-import pointDirect from '../assets/point-direct.svg';
 import radioActif from '../assets/radio-actif.svg';
 import radio from '../assets/radio.svg';
 import { Etapes } from '../components/Etapes.tsx';
+import { SOUVENIRS_EXEMPLES } from '../mocks/souvenirs.ts';
 
 // Écran « 01 · Raconter — écrire » de la maquette Figma
 
@@ -36,6 +37,13 @@ export function Raconter({
     text.trim() !== '' && !loading && (state.kind !== 'done' || perime);
   // On ne passe à la suite qu'avec une analyse terminée et à jour
   const peutContinuer = state.kind === 'done' && !perime;
+
+  // Ajoute un mot proposé par l'assistant à la fin du souvenir
+  function ajouterMot(mot: string) {
+    const debut = text.trimEnd();
+    if (debut === '') return onTextChange(mot);
+    onTextChange(`${debut}${/[.!?…]$/.test(debut) ? ' ' : ', '}${mot}`);
+  }
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -89,8 +97,22 @@ export function Raconter({
               maxLength={5000}
               disabled={loading}
             />
+            <div className="exemples">
+              <span>Exemples (démonstration)&nbsp;:</span>
+              {SOUVENIRS_EXEMPLES.map((ex) => (
+                <button
+                  key={ex.titre}
+                  type="button"
+                  className="exemple"
+                  disabled={loading}
+                  onClick={() => onTextChange(ex.texte)}
+                >
+                  {ex.titre}
+                </button>
+              ))}
+            </div>
             <div className="evoquer">
-              <span>Pensez à évoquer :</span>
+              <span>Pensez à évoquer&nbsp;:</span>
               <Rappel ok={!!analysis?.comprehension.lieu}>le lieu</Rappel>
               <Rappel ok={!!analysis?.comprehension.moment}>le moment</Rappel>
               <Rappel ok={!!analysis?.comprehension.elements.length}>
@@ -103,7 +125,7 @@ export function Raconter({
           </div>
         </div>
 
-        <Perception state={state} perime={perime} />
+        <Perception state={state} perime={perime} onAjouterMot={ajouterMot} />
       </div>
 
       <div className="barre">
@@ -177,63 +199,126 @@ function Rappel({ ok, children }: { ok: boolean; children: string }) {
   );
 }
 
-// Le panneau « Ce que l'IA perçoit », rempli par la compréhension de l'IA
+// Le panneau « Ce que l'IA perçoit », construit après l'envoi à partir de
+// l'analyse renvoyée par l'API (l'IA met de 20 à 120 s : pas de mise à jour
+// à chaque mot)
 function Perception({
   state,
   perime,
+  onAjouterMot,
 }: {
   state: AnalyseState;
   perime: boolean;
+  onAjouterMot: (mot: string) => void;
 }) {
-  const c = state.kind === 'done' ? state.analysis.comprehension : null;
-  const categories = [
-    { nom: 'Lieu', teinte: 'bleu', valeurs: [c?.lieu] },
-    { nom: 'Moment', teinte: 'orange', valeurs: [c?.moment, c?.meteo] },
-    { nom: 'Sensations', teinte: 'vert', valeurs: c?.elements ?? [] },
-    { nom: 'Émotion', teinte: 'violet', valeurs: [c?.emotion] },
-  ].map((cat) => ({
-    ...cat,
-    valeurs: cat.valeurs.filter((v): v is string => !!v),
-  }));
-  const remplies = categories.filter((cat) => cat.valeurs.length > 0).length;
-  const manquantes =
-    state.kind === 'done' ? state.analysis.informations_manquantes : [];
-
-  const statut = {
-    idle: 'En attente',
-    loading: 'Analyse…',
-    done: perime ? 'À mettre à jour' : 'À jour',
-    error: 'Erreur',
-  }[state.kind];
-
   return (
     <aside className="perception" aria-live="polite">
       <div className="perception-haut">
         <div>
           <h2>Ce que l'IA perçoit</h2>
-          <p>Mise à jour à chaque envoi</p>
+          <p>Après l'analyse de votre souvenir</p>
         </div>
-        <span className={`direct ${state.kind}${perime ? ' perime' : ''}`}>
-          <img src={pointDirect} alt="" width={8} height={8} />
-          {statut}
-        </span>
+        {state.kind === 'done' && state.model === 'mock' && (
+          <span className="simulee" title={DETAIL_SIMULEE}>
+            {MENTION_SIMULEE}
+          </span>
+        )}
       </div>
 
+      {state.kind === 'done' ? (
+        <Comprehension
+          analysis={state.analysis}
+          perime={perime}
+          onAjouterMot={onAjouterMot}
+        />
+      ) : (
+        <div className="assistant">
+          <span className="assistant-icone">
+            <img src={iconeAssistant} alt="" width={16} height={16} />
+          </span>
+          <div
+            className={state.kind === 'error' ? 'bulle erreur' : 'bulle'}
+            role={state.kind === 'error' ? 'alert' : undefined}
+          >
+            {state.kind === 'idle' &&
+              'Racontez votre souvenir puis cliquez sur « Analyser mon souvenir »\u00A0: j’en tirerai le lieu, le moment, les sensations et l’émotion.'}
+            {state.kind === 'loading' && (
+              <span className="status">
+                <span className="spinner" aria-hidden="true" />
+                J’analyse votre souvenir… (de 20 s à 2 min)
+              </span>
+            )}
+            {state.kind === 'error' && state.message}
+          </div>
+        </div>
+      )}
+    </aside>
+  );
+}
+
+const MENTION_SIMULEE = 'Réponse simulée';
+const DETAIL_SIMULEE = 'AI_PROVIDER=mock';
+const QUESTION_PAR_DEFAUT =
+  'Qu’est-ce qui vous a le plus marqué dans ce souvenir\u00A0?';
+
+function Comprehension({
+  analysis,
+  perime,
+  onAjouterMot,
+}: {
+  analysis: Analysis;
+  perime: boolean;
+  onAjouterMot: (mot: string) => void;
+}) {
+  const c = analysis.comprehension;
+  const decouper = (texte: string) =>
+    texte
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v !== '');
+  const categories = [
+    { nom: 'Lieu', teinte: 'bleu', valeurs: decouper(c.lieu) },
+    {
+      nom: 'Moment',
+      teinte: 'orange',
+      valeurs: [c.moment.trim(), c.meteo.trim()].filter((v) => v !== ''),
+    },
+    { nom: 'Sensations', teinte: 'vert', valeurs: c.elements },
+    {
+      nom: 'Émotion',
+      teinte: 'violet',
+      valeurs: c.emotion.trim() === '' ? [] : [c.emotion.trim()],
+    },
+  ];
+
+  // Calcul local, pas une sortie de l'IA : la part des cinq champs de la
+  // compréhension qui sont remplis (elements compte à partir de 2 éléments)
+  const champs = [
+    c.lieu.trim() !== '',
+    c.moment.trim() !== '',
+    c.meteo.trim() !== '',
+    c.emotion.trim() !== '',
+    c.elements.length >= 2,
+  ];
+  const remplis = champs.filter(Boolean).length;
+  const richesse = Math.round((remplis / champs.length) * 100);
+
+  const question = analysis.informations_manquantes[0] ?? QUESTION_PAR_DEFAUT;
+  const suggestions = c.elements.slice(0, 3);
+
+  return (
+    <>
       <dl className="categories">
         {categories.map((cat) => (
           <div key={cat.nom} className={`categorie ${cat.teinte}`}>
             <span className="pastille" aria-hidden="true" />
             <dt>{cat.nom}</dt>
             <dd>
-              {cat.valeurs.length === 0 ? (
-                <span className="vide">—</span>
-              ) : (
-                cat.valeurs.map((v) => (
-                  <span key={v} className="puce">
-                    {v}
-                  </span>
-                ))
-              )}
+              {cat.valeurs.map((v) => (
+                <span key={v} className="puce">
+                  {v}
+                </span>
+              ))}
             </dd>
           </div>
         ))}
@@ -242,21 +327,18 @@ function Perception({
       <div className="richesse">
         <div className="richesse-texte">
           <span>Richesse de votre souvenir</span>
-          <strong>{remplies * 25} %</strong>
+          <strong>{richesse} %</strong>
         </div>
         <div
           className="richesse-barres"
           role="meter"
           aria-label="Richesse de votre souvenir"
           aria-valuemin={0}
-          aria-valuemax={4}
-          aria-valuenow={remplies}
+          aria-valuemax={100}
+          aria-valuenow={richesse}
         >
-          {categories.map((cat, i) => (
-            <span
-              key={cat.nom}
-              className={i < remplies ? 'plein' : undefined}
-            />
+          {champs.map((_, i) => (
+            <span key={i} className={i < remplis ? 'plein' : undefined} />
           ))}
         </div>
       </div>
@@ -265,29 +347,29 @@ function Perception({
         <span className="assistant-icone">
           <img src={iconeAssistant} alt="" width={16} height={16} />
         </span>
-        <div
-          className={state.kind === 'error' ? 'bulle erreur' : 'bulle'}
-          role={state.kind === 'error' ? 'alert' : undefined}
-        >
-          {state.kind === 'idle' &&
-            'Racontez votre souvenir puis cliquez sur « Analyser mon souvenir » : j’en tirerai le lieu, le moment, les sensations et l’émotion.'}
-          {state.kind === 'loading' && (
-            <span className="status">
-              <span className="spinner" aria-hidden="true" />
-              J’analyse votre souvenir… (20 s et plus)
-            </span>
+        <div className="assistant-contenu">
+          <div className="bulle">
+            {perime
+              ? 'Votre souvenir a changé\u00A0: analysez-le de nouveau pour mettre à jour.'
+              : `Pour affiner\u00A0: ${question}`}
+          </div>
+          {suggestions.length > 0 && (
+            <div className="suggestions">
+              {suggestions.map((mot) => (
+                <button
+                  key={mot}
+                  type="button"
+                  className="suggestion"
+                  title="Ajouter ce mot à votre souvenir"
+                  onClick={() => onAjouterMot(mot)}
+                >
+                  {mot}
+                </button>
+              ))}
+            </div>
           )}
-          {state.kind === 'error' && state.message}
-          {state.kind === 'done' &&
-            perime &&
-            'Votre souvenir a changé : analysez-le de nouveau pour mettre à jour.'}
-          {state.kind === 'done' &&
-            !perime &&
-            (manquantes.length > 0
-              ? `Pour affiner : ${manquantes.join(' · ')}`
-              : 'Votre souvenir est riche : passez à la suite.')}
         </div>
       </div>
-    </aside>
+    </>
   );
 }

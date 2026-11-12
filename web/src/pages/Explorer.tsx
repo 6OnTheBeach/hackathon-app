@@ -66,42 +66,48 @@ export function Explorer({
 
   return (
     <div className="explorer">
-      <div className="question">
-        <Etapes courante={1} />
-        <div className="question-titre">
-          <h1>Quelles images vous ramènent là-bas ?</h1>
-          <p>
-            Sélectionnez-en autant que vous voulez. La première donne la
-            direction.
-          </p>
+      {/* La zone qui défile : la barre reste visible en dessous */}
+      <div className="defilement">
+        <div className="question">
+          <Etapes courante={1} />
+          <div className="question-titre">
+            <h1>
+              Quelles images vous ramènent{' '}
+              <span className="insecable">là-bas</span>&nbsp;?
+            </h1>
+            <p>
+              Sélectionnez-en autant que vous voulez. La première donne la
+              direction.
+            </p>
+          </div>
         </div>
-      </div>
 
-      <ul className="images" aria-label="Choix d'images">
-        {IMAGES.map((image) => {
-          const rang = selection.indexOf(image.id);
-          const choisie = rang !== -1;
-          return (
-            <li key={image.id}>
-              <button
-                type="button"
-                className={choisie ? 'image-carte choisie' : 'image-carte'}
-                style={{ backgroundColor: image.fond }}
-                aria-pressed={choisie}
-                onClick={() => basculer(image.id)}
-              >
-                <img src={image.src} alt="" loading="lazy" />
-                <span className="image-bas">
-                  <span className="image-nom">{image.nom}</span>
-                  <span className="image-rang" aria-hidden="true">
-                    {choisie ? rang + 1 : '+'}
+        <ul className="images" aria-label="Choix d'images">
+          {IMAGES.map((image) => {
+            const rang = selection.indexOf(image.id);
+            const choisie = rang !== -1;
+            return (
+              <li key={image.id}>
+                <button
+                  type="button"
+                  className={choisie ? 'image-carte choisie' : 'image-carte'}
+                  style={{ backgroundColor: image.fond }}
+                  aria-pressed={choisie}
+                  onClick={() => basculer(image.id)}
+                >
+                  <img src={image.src} alt="" loading="lazy" />
+                  <span className="image-bas">
+                    <span className="image-nom">{image.nom}</span>
+                    <span className="image-rang" aria-hidden="true">
+                      {choisie ? rang + 1 : '+'}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <div className="barre barre-flottante">
         <button type="button" className="bouton discret" onClick={onRetour}>
