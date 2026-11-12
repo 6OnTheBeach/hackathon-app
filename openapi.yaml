@@ -1,8 +1,11 @@
 openapi: 3.1.0
 info:
-  title: API Givaudan B2B
-  version: 0.1.0
-  description: Fiches produits enrichies, comparateur et assistant IA explicatif.
+  title: API Givaudan Scent Journey
+  version: 0.2.0
+  description: >-
+    Scent Journey : le client raconte un souvenir, l'IA en tire une
+    compréhension, une signature olfactive, une roue des familles et un profil
+    (notes de tête, de cœur et de fond).
 
 servers:
   - url: http://localhost:3000/api
@@ -36,89 +39,67 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
 
-  /products:
-    get:
-      summary: Rechercher des produits
-      parameters:
-        - name: q
-          in: query
-          description: Texte recherché dans le nom et la description
-          schema: { type: string }
+  /journeys:
+    post:
+      summary: Créer un parcours Scent Journey
+      description: Un parcours anonyme, qui regroupe les souvenirs racontés par le client.
       responses:
-        '200':
-          description: Les produits trouvés
+        '201':
+          description: Le parcours créé
           content:
             application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/ProductSummary' }
+              schema: { $ref: '#/components/schemas/Journey' }
 
-  /products/{id}:
-    get:
-      summary: Fiche produit enrichie
+  /journeys/{id}/messages:
+    post:
+      summary: Raconter un souvenir et obtenir son analyse par l'IA
+      description: >-
+        Enregistre le souvenir, l'envoie à l'IA, enregistre sa réponse et
+        renvoie le message complet. L'IA peut mettre plus de 20 secondes à
+        répondre (délai maximum : 120 s). Si l'IA échoue, le souvenir reste
+        enregistré sans analyse et la réponse est une 502.
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: string }
-      responses:
-        '200':
-          description: La fiche du produit
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Product' }
-        '404':
-          description: Produit inconnu
-
-  /products/compare:
-    get:
-      summary: Comparer plusieurs produits
-      parameters:
-        - name: ids
-          in: query
-          required: true
-          description: Identifiants séparés par des virgules, de 2 à 4
-          schema: { type: string }
-      responses:
-        '200':
-          description: Les produits, côte à côte
-          content:
-            application/json:
-              schema:
-                type: array
-                items: { $ref: '#/components/schemas/Product' }
-        '400':
-          description: Moins de 2 ou plus de 4 identifiants
-
-  /assistant/questions:
-    post:
-      summary: Poser une question à l'assistant IA
+          description: L'identifiant du parcours
+          schema: { type: string, format: uuid }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [question]
+              required: [text]
               properties:
-                question: { type: string }
-                productId:
+                text:
                   type: string
-                  description: Facultatif, pour une question sur un produit précis
+                  minLength: 1
+                  maxLength: 5000
+                  description: Le souvenir, tel que raconté par le client (espaces de début et de fin retirés)
+                  examples:
+                    - "Une forêt tropicale juste après l'averse, la terre humide et les fleurs qui s'ouvrent."
       responses:
-        '200':
-          description: La réponse de l'assistant
+        '201':
+          description: Le message enregistré, avec l'analyse de l'IA
           content:
             application/json:
-              schema:
-                type: object
-                required: [answer]
-                properties:
-                  answer: { type: string }
-                  productIds:
-                    type: array
-                    items: { type: string }
-                    description: Les produits cités dans la réponse
+              schema: { $ref: '#/components/schemas/Message' }
+        '400':
+          description: Identifiant ou corps invalide (texte vide, trop long, JSON mal formé)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Parcours inconnu
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: L'IA est injoignable, trop lente, ou a renvoyé une réponse invalide
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
 components:
   schemas:
@@ -130,24 +111,107 @@ components:
         error:
           type: string
           description: Message lisible, sans détail technique interne
-    ProductSummary:
+
+    Journey:
       type: object
-      required: [id, name]
+      required: [id, createdAt]
       properties:
-        id: { type: string }
-        name: { type: string }
-        category: { type: string }
-    Product:
-      allOf:
-        - $ref: '#/components/schemas/ProductSummary'
-        - type: object
-          properties:
-            description: { type: string }
-            applications:
-              type: array
-              items: { type: string }
-              description: Les usages du produit
-            caracteristiques:
-              type: object
-              additionalProperties: true
-              description: Caractéristiques techniques, variables selon le type de produit
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+
+    Message:
+      type: object
+      required: [id, journeyId, text, createdAt, model, analysis]
+      properties:
+        id: { type: string, format: uuid }
+        journeyId: { type: string, format: uuid }
+        text: { type: string, description: Le souvenir raconté }
+        createdAt: { type: string, format: date-time }
+        model:
+          type: string
+          description: Le modèle qui a produit l'analyse (« mock » pour le fournisseur fictif)
+        analysis: { $ref: '#/components/schemas/Analysis' }
+
+    Analysis:
+      type: object
+      description: >-
+        L'analyse du souvenir par l'IA (champ answer du service Data/IA).
+        comprehension, signature et roue sont obligatoires ; profil est
+        facultatif ; les listes et le brief absents valent [] et "".
+      required:
+        [
+          comprehension,
+          signature,
+          roue,
+          limites_catalogue,
+          informations_manquantes,
+          brief,
+        ]
+      properties:
+        comprehension: { $ref: '#/components/schemas/Comprehension' }
+        signature: { $ref: '#/components/schemas/Signature' }
+        roue:
+          type: array
+          description: Les familles olfactives et leur part, en pourcentage
+          items: { $ref: '#/components/schemas/RoueEntry' }
+        profil: { $ref: '#/components/schemas/Profil' }
+        limites_catalogue:
+          type: array
+          items: { type: string }
+        informations_manquantes:
+          type: array
+          items: { type: string }
+        brief: { type: string }
+
+    Comprehension:
+      type: object
+      required: [lieu, moment, meteo, emotion, elements]
+      properties:
+        lieu: { type: string }
+        moment: { type: string }
+        meteo: { type: string }
+        emotion: { type: string }
+        elements:
+          type: array
+          items: { type: string }
+
+    Signature:
+      type: object
+      required: [nom, description]
+      properties:
+        nom: { type: string }
+        description: { type: string }
+
+    RoueEntry:
+      type: object
+      required: [famille, pourcentage]
+      properties:
+        famille:
+          type: string
+          examples: [Green]
+        pourcentage: { type: number }
+
+    Profil:
+      type: object
+      required: [tete, coeur, fond]
+      properties:
+        tete:
+          type: array
+          items: { $ref: '#/components/schemas/ProfilNote' }
+        coeur:
+          type: array
+          items: { $ref: '#/components/schemas/ProfilNote' }
+        fond:
+          type: array
+          items: { $ref: '#/components/schemas/ProfilNote' }
+
+    ProfilNote:
+      type: object
+      required: [ingredient, reference, raison, sources]
+      properties:
+        ingredient: { type: string }
+        reference: { type: string }
+        raison: { type: string }
+        sources:
+          type: array
+          items: { type: string }

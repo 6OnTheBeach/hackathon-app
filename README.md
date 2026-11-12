@@ -2,6 +2,8 @@
 
 Projet de l'équipe pour le **Givaudan AI Innovation Challenge 2026**.
 
+**Scent Journey** : le client raconte un souvenir (« une forêt tropicale juste après l'averse… ») ; l'IA en tire une compréhension (lieu, moment, météo, émotion), une signature olfactive, une roue des familles et un profil (notes de tête, de cœur et de fond).
+
 Tout tourne dans un **dev container** : chacun a le même Node, la même base de données et les mêmes outils, quel que soit son ordinateur. Pourquoi ce choix : [Pourquoi tout conteneuriser](https://learn.glassworks.tech/fullstack-setup/environnement/principes).
 
 ## Stack
@@ -9,6 +11,10 @@ Tout tourne dans un **dev container** : chacun a le même Node, la même base de
 - API et front en TypeScript sur Node 24 : [ADR 0001](docs/adr/0001-TypeScript.md)
 - PostgreSQL 17 avec pgvector : [ADR 0002](docs/adr/0002-base-de-donnees.md)
 - Contrat de l'API dans [`openapi.yaml`](openapi.yaml) : [ADR 0003](docs/adr/0003-contrat-api.md)
+- API avec Express 5 : [ADR 0004](docs/adr/0004-framework-api.md)
+- Accès à la base avec Drizzle ORM, migrations appliquées au démarrage de l'API : [ADR 0005](docs/adr/0005-acces-aux-donnees.md)
+- Front React + Vite
+- IA : le service FastAPI de l'équipe Data/IA ([rag-g24](https://github.com/danelquentin04/rag-g24)), ou une réponse fictive : voir [L'IA](#lia--mock-ou-service-dataia)
 
 ## Qui a besoin de quoi ?
 
@@ -107,7 +113,7 @@ Détails dans le cours : [Le dev container › Prérequis](https://learn.glasswo
    ```bash
    npm run dev
    ```
-   Ouvrir http://localhost:5173 : la page doit afficher **API OK** et la version de PostgreSQL. L'API seule répond sur http://localhost:3000/api/health.
+   Ouvrir http://localhost:5173 : l'écran **Racontez un souvenir** s'affiche. Écrire un souvenir, **Envoyer** : « L'IA analyse votre souvenir… », puis la signature, la compréhension, la roue et le profil. Par défaut, l'IA est fictive (`AI_PROVIDER=mock`) : la réponse est toujours la même. L'API seule répond sur http://localhost:3000/api/health.
 
 Ce que fait le conteneur : [Le dev container › Comment ça marche](https://learn.glassworks.tech/fullstack-setup/environnement/devcontainer#comment-ça-marche).
 
@@ -119,10 +125,32 @@ Pour une démo, ou pour Product et Data/IA : toute la stack (base, API, front) d
 docker compose up --build       # --build : reconstruit les images après un git pull
 ```
 
-- Front : http://localhost:8080 (doit afficher **API OK**)
+- Front : http://localhost:8080 (l'écran **Racontez un souvenir**)
 - API : http://localhost:3001/api/health
 
 Les ports diffèrent de ceux de `npm run dev` (5173 et 3000) : les deux peuvent tourner en même temps sans conflit. Le front y est servi par `vite preview`, suffisant pour une démo mais pas un serveur de production. `Ctrl+C` arrête tout ; `docker compose down` supprime les conteneurs (les données de la base restent dans `db/data`).
+
+### L'IA : mock ou service Data/IA
+
+L'API choisit son fournisseur d'IA avec `AI_PROVIDER` :
+
+| `AI_PROVIDER`   | Ce que fait l'API                                                                                                     |
+| --------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `mock` (défaut) | renvoie une réponse fixe (forêt tropicale après la pluie) : pour développer sans le service Data/IA                   |
+| `data`          | appelle `POST {DATA_AI_URL}/ask` (service FastAPI de Data/IA), délai maximum de 120 s ; la réponse prend 20 s et plus |
+
+**Lancer le service Data/IA**, sur la machine hôte (sous Windows : dans Ubuntu), depuis son dépôt [rag-g24](https://github.com/danelquentin04/rag-g24) :
+
+```bash
+uvicorn api:app --host 0.0.0.0 --port 8000
+```
+
+`--host 0.0.0.0` est indispensable : sans lui, uvicorn n'écoute que sur `127.0.0.1` et les conteneurs ne peuvent pas l'atteindre. Les conteneurs le joignent par `http://host.docker.internal:8000` (`extra_hosts` dans `compose.yaml`).
+
+- **Avec `npm run dev`** (dev container) : dans `api/.env`, `AI_PROVIDER=data`, puis relancer `npm run dev`. Un `api/.env` créé avant cette version n'a pas ces lignes : les recopier depuis `api/.env.example`.
+- **Avec docker compose** : `AI_PROVIDER=data docker compose up --build`.
+
+Si l'IA est injoignable, trop lente, ou renvoie une réponse invalide, l'API répond 502 avec un message clair (affiché par le front), et le souvenir reste enregistré, sans analyse.
 
 ---
 
@@ -166,7 +194,7 @@ Le pourquoi : [GitFlow et branches protégées](https://learn.glassworks.tech/fu
 
 ## Règles du projet
 
-- **API** : le contrat est [`openapi.yaml`](openapi.yaml). Une route y est décrite **avant** d'être codée.
+- **API** : le contrat est [`openapi.yaml`](openapi.yaml). Une route y est décrite **avant** d'être codée. Routes actuelles : `GET /health`, `POST /journeys`, `POST /journeys/{id}/messages`.
 - **Décisions** : lire [`docs/adr/`](docs/adr/) avant d'ajouter une dépendance ou de changer de composant. Pour revenir sur une décision, proposer un nouvel ADR à partir de [`docs/templates/0000-modele.md`](docs/templates/0000-modele.md), au statut « proposée ».
 - **Secrets** : clés et mots de passe vont dans `.env` (ignoré par git), jamais dans le code.
 - **Avant une pull request** : `npm run lint`, `npm run format:check` et `npm run build` doivent passer.
@@ -185,6 +213,7 @@ Les mêmes règles, pour les agents IA : [`AGENTS.md`](AGENTS.md).
 | VS Code demande d'autoriser `wsl.localhost`                       | Projet ouvert depuis Windows : **Cancel**, puis `code .` depuis Ubuntu                                                                                                                  |
 | `GH013 … Changes must be made through a pull request`             | Normal : passer par une branche `feature/…` et une pull request                                                                                                                         |
 | `Cannot connect to the Docker daemon` ou `protocol not available` | Docker Desktop n'a pas fini de démarrer : attendre « Engine running ». Sinon, quitter Docker Desktop, `wsl --shutdown` dans PowerShell, relancer Docker Desktop                         |
+| Le front affiche « Le service d'IA est injoignable »              | Service Data/IA non lancé, ou lancé sans `--host 0.0.0.0` : voir [L'IA](#lia--mock-ou-service-dataia). Pour travailler sans lui : `AI_PROVIDER=mock`                                    |
 | `Updating VS Code Server…` à l'ouverture                          | Normal après une mise à jour de VS Code : attendre la fin du téléchargement                                                                                                             |
 
 Le conteneur ne démarre pas ? `F1` → **Dev Containers: Show Container Log**, puis le tableau d'erreurs du cours : [Le dev container › Lancer](https://learn.glassworks.tech/fullstack-setup/environnement/devcontainer#lancer).

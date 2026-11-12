@@ -1,7 +1,8 @@
 # AGENTS.md
 
-Plateforme B2B pour les clients professionnels de Givaudan : fiches produits
-enrichies, comparateur et assistant IA explicatif. Mise en place : `README.md`.
+Givaudan Scent Journey : le client raconte un souvenir, l'IA en tire une
+compréhension, une signature olfactive, une roue des familles et un profil
+(tête, cœur, fond). Mise en place : `README.md`.
 
 ## Lancer
 
@@ -15,6 +16,10 @@ Toutes les commandes se lancent dans le dev container (`.devcontainer/`).
 - `npm run dev` : l'API sur http://localhost:3000/api et le front sur
   http://localhost:5173 (qui relaie `/api` vers l'API).
 - `curl localhost:3000/api/health` doit répondre `{"status":"ok",…}`.
+- L'IA : `AI_PROVIDER=mock` (défaut, réponse fixe, sans service externe) ou
+  `AI_PROVIDER=data` (service FastAPI de Data/IA à `DATA_AI_URL`, lancé sur
+  l'hôte avec `uvicorn api:app --host 0.0.0.0 --port 8000`). Dans `api/.env`
+  pour `npm run dev`, dans l'environnement du shell pour `docker compose up`.
 - `npm run db:generate -w api` : génère une migration depuis
   `api/src/db/schema.ts`.
 - Avant de dire « fini » : `npm run lint`, `npm run format:check` et
@@ -36,6 +41,12 @@ Toutes les commandes se lancent dans le dev container (`.devcontainer/`).
   `<domaine>.routes.ts` ne fait que du HTTP (paramètres, codes de statut) ;
   `<domaine>.service.ts` porte la logique et l'accès à la base. Une route
   n'accède jamais directement à la base.
+- Modules actuels : `health/`, `journeys/` (parcours et souvenirs),
+  `ai/` (`analyze(text)` : choisit le fournisseur selon `AI_PROVIDER`, puis
+  valide la réponse à la main dans `ai.validate.ts`). Une défaillance de l'IA
+  est une `AiError`, traduite en 502 par la route, sans planter l'API.
+- L'IA est lente (20 s et plus, délai maximum de 120 s) : ne pas appeler
+  `analyze` dans une boucle ni dans une route qui doit répondre vite.
 - Les erreurs imprévues remontent au middleware central
   (`src/middlewares/error-handler.ts`), au format `Error` d'`openapi.yaml`.
 - Le schéma de la base est dans `api/src/db/schema.ts` (Drizzle) ; on le
