@@ -11,6 +11,10 @@ services:
     volumes:
       - .:/workspace:cached
       - claude-config:/home/node/.claude
+    # host.docker.internal : la machine hôte, où tourne le service Data/IA
+    # (déjà fourni par Docker Desktop, à déclarer sous Docker Engine Linux)
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     depends_on:
       db:
         condition: service_healthy
@@ -42,6 +46,12 @@ services:
     environment:
       # Identifiants de dev locaux, les mêmes que le service db : pas un secret
       DATABASE_URL: postgres://app:app@db:5432/app
+      # IA : mock par défaut ; AI_PROVIDER=data docker compose up pour appeler
+      # le service Data/IA, lancé sur l'hôte (uvicorn … --host 0.0.0.0)
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      DATA_AI_URL: ${DATA_AI_URL:-http://host.docker.internal:8000}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     ports:
       # 3001 sur la machine : 3000 reste libre pour npm run dev (dev container)
       - '3001:3000'

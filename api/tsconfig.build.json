@@ -1,0 +1,6 @@
+{
+  // Build de production : comme tsconfig.json, sans les tests (*.test.ts),
+  // qui restent vérifiés par le tsc --noEmit de npm run build.
+  "extends": "./tsconfig.json",
+  "exclude": ["src/**/*.test.ts"]
+}
