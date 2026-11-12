@@ -46,6 +46,18 @@ export async function askDataAi(
     );
   }
 
+  // Erreur du tunnel ngrok (service arrêté, tunnel coupé…) : une page HTML,
+  // pas la réponse JSON du service
+  const ngrokError = res.headers.get('ngrok-error-code');
+  if (ngrokError) {
+    throw new AiError(
+      ngrokError === 'ERR_NGROK_3200'
+        ? "Le tunnel ngrok du service d'IA est hors ligne : l'équipe Data/IA doit le relancer"
+        : `Le tunnel ngrok du service d'IA a renvoyé une erreur (${ngrokError}, HTTP ${res.status})`,
+      { cause: await res.text().catch(() => undefined) },
+    );
+  }
+
   // Le corps peut lui aussi être coupé par le délai : même traitement
   let body: unknown;
   try {
