@@ -51,6 +51,8 @@ type Props = {
   auPanier: number | null;
   onAjouter: () => void;
   onRetour: () => void;
+  // Vers l'écran 08 · Créer un compte, une fois l'échantillon au panier
+  onSuivant: () => void;
 };
 
 export function Pistes({
@@ -60,6 +62,7 @@ export function Pistes({
   auPanier,
   onAjouter,
   onRetour,
+  onSuivant,
 }: Props) {
   const pistes = pistesPour(signature);
   const choisies = pistes.filter((p) => p.id in commande.pistes);
@@ -292,6 +295,11 @@ export function Pistes({
         <button type="button" className="bouton secondaire" onClick={onRetour}>
           ← Retour
         </button>
+        {auPanier !== null && (
+          <button type="button" className="bouton" onClick={onSuivant}>
+            Suivant →
+          </button>
+        )}
       </div>
     </div>
   );
