@@ -6,6 +6,7 @@ import {
   type Analysis,
 } from './api.ts';
 import { Header } from './components/Header.tsx';
+import { Compte, type CompteSaisie } from './pages/Compte.tsx';
 import { Explorer, IMAGES } from './pages/Explorer.tsx';
 import { pistesPour } from './mocks/pistes.ts';
 import { nombreEchantillons, Pistes, type Commande } from './pages/Pistes.tsx';
@@ -24,8 +25,10 @@ export type AnalyseState =
   | { kind: 'error'; message: string };
 
 // Les écrans 05 · Envoyer ma demande et 06 · Merci ne sont pas encore faits :
-// Projet mène directement aux pistes
-type Ecran = 'raconter' | 'explorer' | 'ressentir' | 'projet' | 'pistes';
+// Projet mène directement aux pistes. L'écran 09 · Livraison non plus :
+// Compte s'arrête sur un message de démonstration
+type Ecran =
+  'raconter' | 'explorer' | 'ressentir' | 'projet' | 'pistes' | 'compte';
 
 export function App() {
   const [ecran, setEcran] = useState<Ecran>('raconter');
@@ -49,6 +52,17 @@ export function App() {
   });
   // Le nombre d'échantillons mis au panier (null : rien d'ajouté)
   const [auPanier, setAuPanier] = useState<number | null>(null);
+  // Le formulaire de l'écran Compte : retrouvé tel quel après un retour aux
+  // pistes. Rien n'est enregistré, le mot de passe compris
+  const [compte, setCompte] = useState<CompteSaisie>({
+    prenom: '',
+    nom: '',
+    societe: '',
+    email: '',
+    motDePasse: '',
+    conditions: false,
+    sms: false,
+  });
 
   const perime = state.kind === 'done' && text.trim() !== texteAnalyse;
 
@@ -105,8 +119,9 @@ export function App() {
   const premiereImage = IMAGES.find((i) => i.id === selection[0])?.src;
 
   return (
-    <div className="app">
-      <Header panier={auPanier ?? 0} />
+    // L'écran Compte n'a pas d'en-tête : la photo occupe toute la hauteur
+    <div className={ecran === 'compte' ? 'app sans-entete' : 'app'}>
+      {ecran !== 'compte' && <Header panier={auPanier ?? 0} />}
       {ecran === 'raconter' && (
         <Raconter
           text={text}
@@ -153,6 +168,14 @@ export function App() {
           auPanier={auPanier}
           onAjouter={() => setAuPanier(nombreEchantillons(commande))}
           onRetour={() => aller('projet')}
+          onSuivant={() => aller('compte')}
+        />
+      )}
+      {ecran === 'compte' && state.kind === 'done' && (
+        <Compte
+          saisie={compte}
+          onSaisieChange={setCompte}
+          onRetour={() => aller('pistes')}
         />
       )}
     </div>

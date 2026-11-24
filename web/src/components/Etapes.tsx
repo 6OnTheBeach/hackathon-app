@@ -1,20 +1,22 @@
 const ETAPES = ['Raconter', 'Explorer', 'Ressentir', 'Projet', 'Envoi'];
 
-// Le fil des 5 étapes : les étapes passées sont cochées, la courante mise en
-// avant. claire : en blanc, posé sur une photo
+// Le fil des étapes : les étapes passées sont cochées, la courante mise en
+// avant. claire : en blanc, posé sur une photo. etapes et label : par défaut,
+// les 5 étapes du parcours ; la commande d'échantillons passe les siennes
 export function Etapes({
   courante,
   claire,
+  etapes = ETAPES,
+  label = 'Étapes du parcours',
 }: {
   courante: number;
   claire?: boolean;
+  etapes?: string[];
+  label?: string;
 }) {
   return (
-    <ol
-      className={claire ? 'etapes claire' : 'etapes'}
-      aria-label="Étapes du parcours"
-    >
-      {ETAPES.map((etape, i) => {
+    <ol className={claire ? 'etapes claire' : 'etapes'} aria-label={label}>
+      {etapes.map((etape, i) => {
         const statut =
           i < courante ? 'fait' : i === courante ? 'actif' : undefined;
         return (
