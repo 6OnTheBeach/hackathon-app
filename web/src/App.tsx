@@ -8,6 +8,7 @@ import {
 import { Header } from './components/Header.tsx';
 import { Compte, type CompteSaisie } from './pages/Compte.tsx';
 import { Explorer, IMAGES } from './pages/Explorer.tsx';
+import { Livraison, type LivraisonChoix } from './pages/Livraison.tsx';
 import { pistesPour } from './mocks/pistes.ts';
 import { nombreEchantillons, Pistes, type Commande } from './pages/Pistes.tsx';
 import { Projet, type ProjetReponses } from './pages/Projet.tsx';
@@ -25,10 +26,16 @@ export type AnalyseState =
   | { kind: 'error'; message: string };
 
 // Les écrans 05 · Envoyer ma demande et 06 · Merci ne sont pas encore faits :
-// Projet mène directement aux pistes. L'écran 09 · Livraison non plus :
-// Compte s'arrête sur un message de démonstration
+// Projet mène directement aux pistes. Livraison s'arrête sur un message de
+// démonstration
 type Ecran =
-  'raconter' | 'explorer' | 'ressentir' | 'projet' | 'pistes' | 'compte';
+  | 'raconter'
+  | 'explorer'
+  | 'ressentir'
+  | 'projet'
+  | 'pistes'
+  | 'compte'
+  | 'livraison';
 
 export function App() {
   const [ecran, setEcran] = useState<Ecran>('raconter');
@@ -59,9 +66,18 @@ export function App() {
     nom: '',
     societe: '',
     email: '',
+    telephone: '',
     motDePasse: '',
     conditions: false,
     sms: false,
+  });
+  // Les choix de l'écran Livraison : retrouvés tels quels après un passage
+  // par l'écran Compte. Rien n'est enregistré
+  const [livraison, setLivraison] = useState<LivraisonChoix>({
+    adresse: 'siege',
+    mode: 'standard',
+    note: '',
+    conditions: false,
   });
 
   const perime = state.kind === 'done' && text.trim() !== texteAnalyse;
@@ -176,6 +192,18 @@ export function App() {
           saisie={compte}
           onSaisieChange={setCompte}
           onRetour={() => aller('pistes')}
+          onSuivant={() => aller('livraison')}
+        />
+      )}
+      {ecran === 'livraison' && state.kind === 'done' && (
+        <Livraison
+          signature={state.analysis.signature.nom}
+          commande={commande}
+          compte={compte}
+          choix={livraison}
+          onChoixChange={setLivraison}
+          onModifier={() => aller('compte')}
+          onRetour={() => aller('compte')}
         />
       )}
     </div>

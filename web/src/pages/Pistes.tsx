@@ -1,6 +1,12 @@
 import fleursBlanches from '../assets/explorer-fleurs-blanches.png';
 import mouillettes from '../assets/format-mouillettes.png';
 import interieur from '../assets/produit-interieur.png';
+import {
+  formatsChoisis,
+  FORMATS_ECHANTILLON,
+  LignesPanier,
+  type FormatEchantillon,
+} from '../components/LignesPanier.tsx';
 import { COULEURS_FAMILLES, pistesPour } from '../mocks/pistes.ts';
 
 // Écran « 07 · Vos pistes et panier » de la maquette Figma : les pistes
@@ -11,23 +17,30 @@ import { COULEURS_FAMILLES, pistesPour } from '../mocks/pistes.ts';
 
 const NOMBRES = ['aucune', 'une', 'deux', 'trois', 'quatre', 'cinq'];
 
-const FORMATS = [
-  {
-    nom: 'Mouillettes parfumées',
+// La description et la photo de chaque format ; leur ordre est celui de
+// FORMATS_ECHANTILLON, partagé avec le récapitulatif de l'écran 09
+const DETAILS_FORMATS: Record<
+  FormatEchantillon,
+  { description: string; photo: string }
+> = {
+  'Mouillettes parfumées': {
     description: 'Des touches papier, pour sentir tout de suite.',
     photo: mouillettes,
   },
-  {
-    nom: 'Flacon 5 ml',
+  'Flacon 5 ml': {
     description: 'L’huile parfumée, pour tester à votre rythme.',
     photo: fleursBlanches,
   },
-  {
-    nom: 'Dans vos produits',
+  'Dans vos produits': {
     description: 'Intégrée à une base soin et une bougie test.',
     photo: interieur,
   },
-];
+};
+
+const FORMATS = FORMATS_ECHANTILLON.map((nom) => ({
+  nom,
+  ...DETAILS_FORMATS[nom],
+}));
 
 const QUANTITE_MAX = 5;
 
@@ -68,10 +81,9 @@ export function Pistes({
   const choisies = pistes.filter((p) => p.id in commande.pistes);
   const nombre = NOMBRES[pistes.length] ?? String(pistes.length);
   const echantillons = nombreEchantillons(commande);
-  const formats = FORMATS.map((f) => f.nom).filter((f) =>
-    commande.formats.includes(f),
-  );
-  const formatsTexte = formats.join(', ').toLowerCase();
+  const formatsTexte = formatsChoisis(commande.formats)
+    .join(', ')
+    .toLowerCase();
   const dejaAjoute = auPanier !== null && auPanier === echantillons;
 
   function basculerPiste(id: string) {
@@ -243,22 +255,11 @@ export function Pistes({
           {choisies.length === 0 ? (
             <p className="panier-vide">Choisissez une piste pour la sentir.</p>
           ) : (
-            <ul className="panier-lignes">
-              {choisies.map((p) => (
-                <li key={p.id}>
-                  <img src={p.photo} alt="" />
-                  <span className="panier-ligne-texte">
-                    <strong>
-                      Piste {p.lettre}, {p.nom}
-                    </strong>
-                    <span>{formatsTexte || 'aucun format choisi'}</span>
-                  </span>
-                  <span className="panier-quantite">
-                    × {(commande.pistes[p.id] ?? 0) * formats.length}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <LignesPanier
+              pistes={choisies}
+              quantites={commande.pistes}
+              formats={commande.formats}
+            />
           )}
 
           <dl className="panier-infos">
