@@ -10,8 +10,8 @@ import { Etapes } from '../components/Etapes.tsx';
 // apporte, sur la photo à gauche, et le formulaire d'inscription à droite
 
 // Front seulement : rien n'est enregistré (ni appel à l'API, ni route, ni
-// table). Le compte sera créé côté API dans un prochain ticket, et l'écran
-// 09 · Livraison fera l'objet d'un autre
+// table). Le compte sera créé côté API dans un prochain ticket ; un
+// formulaire valide mène à l'écran 09 · Livraison
 
 const AVANTAGES = [
   {
@@ -46,14 +46,20 @@ export type CompteSaisie = {
   nom: string;
   societe: string;
   email: string;
+  // Facultatif, sans contrôle de format
+  telephone: string;
   // Gardé en mémoire le temps du parcours, jamais envoyé
   motDePasse: string;
   conditions: boolean;
   sms: boolean;
 };
 
-type ChampTexte = 'prenom' | 'nom' | 'societe' | 'email' | 'motDePasse';
-type Erreurs = Partial<Record<ChampTexte | 'conditions', string>>;
+type ChampTexte =
+  'prenom' | 'nom' | 'societe' | 'email' | 'telephone' | 'motDePasse';
+// Le téléphone, facultatif, n'est jamais en erreur
+type Erreurs = Partial<
+  Record<Exclude<ChampTexte, 'telephone'> | 'conditions', string>
+>;
 
 // Dans l'ordre de la page : le premier champ en erreur reçoit le focus
 const ORDRE: (keyof Erreurs)[] = [
@@ -84,19 +90,20 @@ function verifier(saisie: CompteSaisie): Erreurs {
   return erreurs;
 }
 
-const idChamp = (champ: keyof Erreurs) => `compte-${champ}`;
-const idErreur = (champ: keyof Erreurs) => `compte-${champ}-erreur`;
+const idChamp = (champ: ChampTexte | 'conditions') => `compte-${champ}`;
+const idErreur = (champ: ChampTexte | 'conditions') => `compte-${champ}-erreur`;
 
 type Props = {
   saisie: CompteSaisie;
   onSaisieChange: (saisie: CompteSaisie) => void;
   onRetour: () => void;
+  // Vers l'écran 09 · Livraison, une fois le formulaire valide
+  onSuivant: () => void;
 };
 
-export function Compte({ saisie, onSaisieChange, onRetour }: Props) {
+export function Compte({ saisie, onSaisieChange, onRetour, onSuivant }: Props) {
   // Les erreurs n'apparaissent qu'après un clic sur « Créer mon compte »
   const [erreurs, setErreurs] = useState<Erreurs>({});
-  const [cree, setCree] = useState(false);
 
   // Corriger un champ efface son message, sans attendre le prochain clic
   function changer<K extends keyof CompteSaisie>(
@@ -109,7 +116,6 @@ export function Compte({ saisie, onSaisieChange, onRetour }: Props) {
       delete suivantes[champ as keyof Erreurs];
       setErreurs(suivantes);
     }
-    setCree(false);
   }
 
   function creer(event: FormEvent<HTMLFormElement>) {
@@ -118,16 +124,15 @@ export function Compte({ saisie, onSaisieChange, onRetour }: Props) {
     setErreurs(trouvees);
     const premier = ORDRE.find((champ) => champ in trouvees);
     if (premier) {
-      setCree(false);
       document.getElementById(idChamp(premier))?.focus();
       return;
     }
-    setCree(true);
+    onSuivant();
   }
 
   // Les props communes d'un champ texte : valeur, message d'erreur relié
   function champ(nom: ChampTexte, aide?: string) {
-    const erreur = erreurs[nom];
+    const erreur = nom === 'telephone' ? undefined : erreurs[nom];
     const decrit = [aide, erreur ? idErreur(nom) : undefined]
       .filter(Boolean)
       .join(' ');
@@ -260,6 +265,13 @@ export function Compte({ saisie, onSaisieChange, onRetour }: Props) {
             </div>
 
             <div className="compte-champ">
+              <label htmlFor={idChamp('telephone')}>
+                Téléphone (facultatif)
+              </label>
+              <input type="tel" autoComplete="tel" {...champ('telephone')} />
+            </div>
+
+            <div className="compte-champ">
               <label htmlFor={idChamp('motDePasse')}>Mot de passe</label>
               <input
                 type="password"
@@ -317,9 +329,6 @@ export function Compte({ saisie, onSaisieChange, onRetour }: Props) {
             <button type="submit" className="bouton compte-creer">
               Créer mon compte et continuer
             </button>
-            <p className="compte-confirmation" role="status">
-              {cree ? 'Compte créé (démonstration)' : ''}
-            </p>
           </form>
         </div>
 
