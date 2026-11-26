@@ -18,7 +18,7 @@ import type { Commande } from './Pistes.tsx';
 
 // Front seulement : rien n'est enregistré (ni appel à l'API, ni route, ni
 // table). Les adresses viennent de mocks/adresses.ts, des données de
-// démonstration ; la confirmation n'affiche qu'un message
+// démonstration ; la confirmation mène à l'écran 10 · Commande confirmée
 
 export type ModeLivraison = 'standard' | 'express' | 'main-propre';
 
@@ -69,6 +69,8 @@ type Props = {
   // Les deux mènent à l'écran 08 · Créer un compte, la saisie intacte
   onModifier: () => void;
   onRetour: () => void;
+  // Case cochée : vers l'écran 10 · Commande confirmée
+  onConfirmer: () => void;
 };
 
 // Le bouton radio de la maquette, dessiné à côté du vrai <input>, masqué
@@ -104,10 +106,10 @@ export function Livraison({
   onChoixChange,
   onModifier,
   onRetour,
+  onConfirmer,
 }: Props) {
   // Le message de la case n'apparaît qu'après un clic sur « Confirmer »
   const [erreur, setErreur] = useState(false);
-  const [confirmee, setConfirmee] = useState(false);
   const caseRef = useRef<HTMLInputElement>(null);
 
   const pistes = pistesPour(signature).filter((p) => p.id in commande.pistes);
@@ -116,24 +118,21 @@ export function Livraison({
   const nom = `${compte.prenom.trim()} ${compte.nom.trim()}`.trim();
   const telephone = compte.telephone.trim();
 
-  // Changer un choix annule une confirmation déjà affichée
   function changer<K extends keyof LivraisonChoix>(
     champ: K,
     valeur: LivraisonChoix[K],
   ) {
     onChoixChange({ ...choix, [champ]: valeur });
     if (champ === 'conditions' && valeur) setErreur(false);
-    setConfirmee(false);
   }
 
   function confirmer() {
     if (!choix.conditions) {
       setErreur(true);
-      setConfirmee(false);
       caseRef.current?.focus();
       return;
     }
-    setConfirmee(true);
+    onConfirmer();
   }
 
   return (
@@ -363,9 +362,6 @@ export function Livraison({
           >
             Confirmer ma commande
           </button>
-          <p className="livraison-confirmation" role="status">
-            {confirmee ? 'Commande confirmée (démonstration)' : ''}
-          </p>
         </aside>
       </div>
 
