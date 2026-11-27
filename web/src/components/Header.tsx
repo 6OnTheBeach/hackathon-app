@@ -3,11 +3,29 @@ import logo from '../assets/logo-givaudan.png';
 import panier from '../assets/panier.svg';
 
 // L'en-tête commun à tous les écrans (composant « Header » de la maquette).
-// panier : le nombre d'échantillons au panier, affiché sur l'icône
-export function Header({ panier: nombre = 0 }: { panier?: number }) {
+// panier : le nombre d'échantillons au panier, affiché sur l'icône.
+// onAccueil : le logo ramène à l'accueil.
+// claire : la variante de l'accueil, transparente et en blanc, posée sur la
+// photo du bandeau
+export function Header({
+  panier: nombre = 0,
+  onAccueil,
+  claire = false,
+}: {
+  panier?: number;
+  onAccueil: () => void;
+  claire?: boolean;
+}) {
   return (
-    <header className="entete">
-      <img className="logo" src={logo} alt="Givaudan" />
+    <header className={claire ? 'entete claire' : 'entete'}>
+      <button
+        type="button"
+        className="logo-bouton"
+        aria-label="Givaudan, retour à l'accueil"
+        onClick={onAccueil}
+      >
+        <img className="logo" src={logo} alt="" />
+      </button>
       <nav className="menu" aria-label="Givaudan">
         <span>Our Company</span>
         <span>Taste &amp; Wellbeing</span>

@@ -6,6 +6,7 @@ import {
   type Analysis,
 } from './api.ts';
 import { Header } from './components/Header.tsx';
+import { Accueil } from './pages/Accueil.tsx';
 import { Compte, type CompteSaisie } from './pages/Compte.tsx';
 import {
   Confirmation,
@@ -32,6 +33,7 @@ export type AnalyseState =
 // Les écrans 05 · Envoyer ma demande et 06 · Merci ne sont pas encore faits :
 // Projet mène directement aux pistes
 type Ecran =
+  | 'accueil'
   | 'raconter'
   | 'explorer'
   | 'ressentir'
@@ -51,7 +53,11 @@ function numeroCommande(date: Date, aleatoire = Math.random): string {
 }
 
 export function App() {
-  const [ecran, setEcran] = useState<Ecran>('raconter');
+  const [ecran, setEcran] = useState<Ecran>('accueil');
+  // Le dernier écran du parcours visité : « Commencer l'expérience » y mène,
+  // pour reprendre le parcours là où il en était (Raconter s'il n'a pas
+  // commencé)
+  const [dernierEcran, setDernierEcran] = useState<Ecran>('raconter');
   const [text, setText] = useState('');
   // Le parcours est créé au premier envoi, puis réutilisé
   const [journeyId, setJourneyId] = useState<string | null>(null);
@@ -100,8 +106,10 @@ export function App() {
 
   const perime = state.kind === 'done' && text.trim() !== texteAnalyse;
 
+  // Aller à l'accueil n'efface rien : tout l'état du parcours est gardé
   function aller(suivant: Ecran) {
     setEcran(suivant);
+    if (suivant !== 'accueil') setDernierEcran(suivant);
     window.scrollTo(0, 0);
   }
 
@@ -161,12 +169,22 @@ export function App() {
   }
 
   const premiereImage = IMAGES.find((i) => i.id === selection[0])?.src;
+  const panier = ecran === 'confirmation' ? 0 : (auPanier ?? 0);
+  // L'accueil et l'écran Compte n'ont pas d'en-tête en haut de la grille :
+  // l'accueil pose le sien sur la photo du bandeau, Compte n'en a pas
+  const sansEntete = ecran === 'accueil' || ecran === 'compte';
 
   return (
-    // L'écran Compte n'a pas d'en-tête : la photo occupe toute la hauteur
-    <div className={ecran === 'compte' ? 'app sans-entete' : 'app'}>
-      {ecran !== 'compte' && (
-        <Header panier={ecran === 'confirmation' ? 0 : (auPanier ?? 0)} />
+    <div className={sansEntete ? 'app sans-entete' : 'app'}>
+      {!sansEntete && (
+        <Header panier={panier} onAccueil={() => aller('accueil')} />
+      )}
+      {ecran === 'accueil' && (
+        <Accueil
+          panier={panier}
+          onAccueil={() => aller('accueil')}
+          onCommencer={() => aller(dernierEcran)}
+        />
       )}
       {ecran === 'raconter' && (
         <Raconter
